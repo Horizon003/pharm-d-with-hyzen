@@ -1,0 +1,29 @@
+[
+  {
+    "path": "assets/illustrations/genz_error.webp",
+    "brief": "An ivory document beside a small disconnected cable and softly sculpted slate cloud, restrained teal accents. Calm recoverable network error concept, no alarm face, no crosses, no success/check symbols.",
+    "source_file": "exec-6e749d05-a853-4f36-9aea-2f16d519e31f.png",
+    "bytes": 17622,
+    "sha256": "5f67955584e068d9027269351e59ddcc694c864f42f15894aa1079fcd5c06726",
+    "generator": "built-in image_gen",
+    "format": "384x384 RGBA WebP"
+  },
+  {
+    "path": "assets/illustrations/genz_offline.webp",
+    "brief": "An ivory document tucked safely into a teal folder beside a tiny slate tablet. Calm offline reading concept, no status ticks, no connection guarantee, no people.",
+    "source_file": "exec-a45a2a16-838e-484e-b11d-1063624ea1aa.png",
+    "bytes": 17404,
+    "sha256": "e45745cad76ce69f9180faaa91166ea84d8fbb4e030624ba86c1a1080c04981d",
+    "generator": "built-in image_gen",
+    "format": "384x384 RGBA WebP"
+  },
+  {
+    "path": "assets/illustrations/genz_transfer.webp",
+    "brief": "A single ivory document above an open teal tray with a sculpted downward arrow, restrained slate detail. Download/transfer illustration only; no progress bar, percent, completion tick or success claims.",
+    "source_file": "exec-88963349-f6b9-4d6e-bf3b-268a4b78b5c6.png",
+    "bytes": 11344,
+    "sha256": "5e6f0d69a9cd8b7f8b5c66a0e9252cc059559d47a0233c9bc655b12519934ea8",
+    "generator": "built-in image_gen",
+    "format": "384x384 RGBA WebP"
+  }
+]

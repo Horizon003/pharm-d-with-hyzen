@@ -1,0 +1,60 @@
+    // Additive private profiles. Identity and creation time are immutable.
+    function ownsProfile(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function boundedText(value, min, max) {
+      return value is string && value.size() >= min && value.size() <= max;
+    }
+    function optionalText(data, key, max) {
+      return !(key in data) || data[key] == null || boundedText(data[key], 0, max);
+    }
+    function validUniversity(data) {
+      return !('affiliatedUniversity' in data) || data.affiliatedUniversity == null
+        || (data.affiliatedUniversity is map
+          && data.affiliatedUniversity.keys().hasAll(['id','name','shortName','city'])
+          && data.affiliatedUniversity.keys().hasOnly(['id','name','shortName','city'])
+          && boundedText(data.affiliatedUniversity.id,1,80)
+          && boundedText(data.affiliatedUniversity.name,1,200)
+          && boundedText(data.affiliatedUniversity.shortName,1,80)
+          && boundedText(data.affiliatedUniversity.city,1,100));
+    }
+    function validProfile(data, uid) {
+      return data.keys().hasAll(['uid','fullName','mobile','gender','city',
+          'professionalYear','institutionName','affiliationStatus','email','role',
+          'createdAt','updatedAt'])
+        && data.keys().hasOnly(['uid','fullName','mobile','gender','city',
+          'professionalYear','institutionName','affiliationStatus',
+          'affiliatedUniversity','customUniversity','customUniversityCity',
+          'rollNumber','photoUrl','email','role','createdAt','updatedAt'])
+        && data.uid == uid && data.role == 'student'
+        && boundedText(data.email,3,254)
+        && data.email == request.auth.token.email.lower()
+        && boundedText(data.fullName,3,80)
+        && data.mobile is string && data.mobile.matches('^\\+923[0-9]{9}$')
+        && data.gender in ['male','female','other']
+        && boundedText(data.city,1,100)
+        && data.professionalYear is int
+        && data.professionalYear >= 1 && data.professionalYear <= 5
+        && boundedText(data.institutionName,1,200)
+        && data.affiliationStatus in ['affiliated','non_affiliated']
+        && validUniversity(data)
+        && optionalText(data,'customUniversity',200)
+        && optionalText(data,'customUniversityCity',100)
+        && optionalText(data,'rollNumber',100)
+        && optionalText(data,'photoUrl',2048)
+        && data.createdAt is timestamp
+        && data.updatedAt == request.time;
+    }
+    match /students/{uid} {
+      allow get: if ownsProfile(uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if ownsProfile(uid) && validProfile(request.resource.data,uid)
+        && request.resource.data.createdAt == request.time;
+      allow update: if ownsProfile(uid) && validProfile(request.resource.data,uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'fullName','mobile','gender','city','professionalYear','institutionName',
+          'affiliationStatus','affiliatedUniversity','customUniversity',
+          'customUniversityCity','rollNumber','photoUrl','updatedAt']);
+      allow delete: if false;
+    }
+

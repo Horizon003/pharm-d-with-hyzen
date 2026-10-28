@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "quiz_import_batches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "state", "order": "ASCENDING"},
+        {"fieldPath": "expiresAt", "order": "ASCENDING"}
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

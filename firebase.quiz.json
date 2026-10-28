@@ -1,0 +1,4 @@
+{
+  "functions": [{"source":"quiz-backend","codebase":"hyzen-quiz","runtime":"nodejs22","ignore":["node_modules","test","*.log",".git"]}],
+  "firestore": {"indexes":"quiz-backend/firestore.indexes.json"}
+}

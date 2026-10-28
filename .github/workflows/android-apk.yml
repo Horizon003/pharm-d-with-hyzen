@@ -1,33 +1,95 @@
-name: Build signed Hyzen APK
-
+name: Build current signed Hyzen APK
 on:
+  push:
+    branches: [work/hyzen-quiz-duel-release]
+    paths: [updates_phase_08.json, tools/release_evidence.py, .github/workflows/android-apk.yml]
   workflow_dispatch:
-
+    inputs:
+      publish:
+        description: Publish the verified APK as a GitHub release
+        required: true
+        type: boolean
+        default: false
+      version_name:
+        description: Android version name
+        required: true
+        type: string
+        default: '1.5.0'
+      version_code:
+        description: Android version code (must exceed the installed release)
+        required: true
+        type: string
+        default: '12'
 permissions:
   contents: read
-
+concurrency:
+  group: hyzen-current-release
+  cancel-in-progress: false
 jobs:
-  build:
+  backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Extract source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: firebase-security
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: quiz-backend
+      - run: npm test
+        working-directory: firebase-security
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate version and publication target
+        env:
+          VERSION_NAME: ${{ inputs.version_name || '1.5.0' }}
+          VERSION_CODE: ${{ inputs.version_code || '12' }}
+          PUBLISH: ${{ inputs.publish }}
         run: |
-          unzip -q PharmD_With_Hyzen_Source_1.3.3.zip
-          cp -a lib/. hyzen_flutter/lib/
-          cp -a android/. hyzen_flutter/android/
+          python3 - <<'PY'
+          import os,re
+          assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+',os.environ['VERSION_NAME'])
+          assert re.fullmatch(r'[1-9][0-9]{0,8}',os.environ['VERSION_CODE'])
+          assert int(os.environ['VERSION_CODE']) > 11
+          assert os.environ['PUBLISH'] != 'true' or os.environ['GITHUB_REF'] == 'refs/heads/main', 'Publish only a merged main commit'
+          PY
+      - name: Assemble every current phase and scanner overlay
+        run: |
+          python3 -m unittest discover -s tools/tests -v
+          python3 tools/assemble_review.py --repo . --output hyzen_flutter
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
-          cache-dependency-path: hyzen_flutter/android/*.gradle*
+      - uses: gradle/actions/setup-gradle@v4
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.4'
           channel: stable
           cache: true
-      - name: Restore owner signing key
+      - run: flutter pub get
+        working-directory: hyzen_flutter
+      - name: Apply the same inherited normalization as review CI
+        working-directory: hyzen_flutter
+        run: |
+          dart format lib test
+          dart fix --apply
+          dart fix --apply --code=curly_braces_in_flow_control_structures
+          dart format lib test
+      - run: flutter analyze --no-pub
+        working-directory: hyzen_flutter
+      - run: flutter test --no-pub --reporter expanded
+        working-directory: hyzen_flutter
+      - name: Restore owner signing identity
         working-directory: hyzen_flutter
         env:
           KEYSTORE_BASE64: ${{ secrets.HYZEN_KEYSTORE_BASE64 }}
@@ -39,37 +101,51 @@ jobs:
           test -n "$KEYSTORE_BASE64" && test -n "$STORE_PASSWORD" && test -n "$KEY_PASSWORD" && test -n "$KEY_ALIAS"
           mkdir -p android/signing
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/signing/hyzen-release.jks
-          chmod 600 android/signing/hyzen-release.jks
           printf 'storeFile=signing/hyzen-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/key.properties
-          chmod 600 android/key.properties
-      - run: flutter pub get
+          chmod 600 android/key.properties android/signing/hyzen-release.jks
+          chmod +x android/gradlew
+      - name: Build current universal release APK
         working-directory: hyzen_flutter
-      - run: flutter analyze --no-pub
-        working-directory: hyzen_flutter
-      - run: flutter test --no-pub --reporter expanded
-        working-directory: hyzen_flutter
-      - run: flutter build apk --release --no-pub
-        working-directory: hyzen_flutter
-      - name: Identify artifact
-        run: sha256sum hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk > hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk.sha256
+        env:
+          VERSION_NAME: ${{ inputs.version_name || '1.5.0' }}
+          VERSION_CODE: ${{ inputs.version_code || '12' }}
+        run: flutter build apk --release --no-pub --build-name "$VERSION_NAME" --build-number "$VERSION_CODE"
+      - name: Verify original certificate and prepare provenance
+        env:
+          VERSION_NAME: ${{ inputs.version_name || '1.5.0' }}
+          VERSION_CODE: ${{ inputs.version_code || '12' }}
+        run: |
+          mkdir release
+          cp hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk release/PharmD-With-Hyzen.apk
+          signer=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$signer" verify --verbose --print-certs release/PharmD-With-Hyzen.apk > release/signing-report.txt
+          cat release/signing-report.txt
+          python3 tools/release_evidence.py --source hyzen_flutter --output release --commit "$GITHUB_SHA" --version "$VERSION_NAME" --build "$VERSION_CODE"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: hyzen-signing-diagnostics-not-for-release
+          path: release/signing-report.txt
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: PharmD_With_Hyzen_1.3.3_signed
-          path: |
-            hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk
-            hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk.sha256
+          name: hyzen-current-signed-candidate
+          path: release/
           if-no-files-found: error
           retention-days: 30
-
+      - name: Remove signing material from runner
+        if: always()
+        run: rm -f hyzen_flutter/android/key.properties hyzen_flutter/android/signing/hyzen-release.jks
   install-smoke:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: PharmD_With_Hyzen_1.3.3_signed
-          path: apk
-      - name: Enable KVM
+          name: hyzen-current-signed-candidate
+          path: release
+      - name: Enable emulator KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
@@ -81,14 +157,37 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            adb install -r apk/app-release.apk
+            (cd release && sha256sum -c SHA256SUMS)
+            adb install -r release/PharmD-With-Hyzen.apk
             adb shell monkey -p com.hyzen.pharmd -c android.intent.category.LAUNCHER 1
             sleep 8
-            adb logcat -d > launch-logcat.txt
             adb shell pidof com.hyzen.pharmd
+            adb logcat -d > launch-logcat.txt
+            if grep -q 'FATAL EXCEPTION' launch-logcat.txt; then exit 1; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Hyzen_install_smoke_logs
+          name: hyzen-current-install-evidence
           path: launch-logcat.txt
-          if-no-files-found: ignore
+  publish:
+    if: inputs.publish || github.event_name == 'push'
+    needs: [backend, build, install-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hyzen-current-signed-candidate
+          path: release
+      - name: Publish only the exact tested commit and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION_NAME: ${{ inputs.version_name || '1.5.0' }}
+          VERSION_CODE: ${{ inputs.version_code || '12' }}
+        run: |
+          cd release
+          sha256sum -c SHA256SUMS
+          printf '\nCampus League (quizzes, duels and rankings) is Coming soon and disabled in this release. No quiz backend or paid billing is required.\n' >> release-notes.md
+          gh release create "v${VERSION_NAME}-${VERSION_CODE}" PharmD-With-Hyzen.apk SHA256SUMS release-evidence.json signing-report.txt --target "$GITHUB_SHA" --title "Pharm D With Hyzen ${VERSION_NAME}" --notes-file release-notes.md
