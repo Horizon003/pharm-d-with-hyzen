@@ -767,6 +767,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final p = ref.watch(profileProvider).valueOrNull;
     final user = ref.watch(authStateProvider).valueOrNull;
     final mode = ref.watch(themeModeProvider);
+    final textScale = ref.watch(doublePrefProvider('pref_text_scale'));
+    final reduceMotion = ref.watch(boolPrefProvider('pref_reduce_motion'));
     final notif = ref.watch(boolPrefProvider('pref_announcements'));
     final used = ref
         .watch(downloadsProvider)
@@ -778,11 +780,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: 'Settings',
       onBack: () => _accountBack(context),
       children: [
-        AccountProfileCard(
+        WorkspaceIdentityCard(
           name: _accountName(p, user?.displayName, ref.watch(isAdminProvider)),
-          subtitle: 'Account info',
+          subtitle: [
+            if (p?.rollNumber?.trim().isNotEmpty == true) p!.rollNumber!,
+            if (email?.trim().isNotEmpty == true) email!,
+          ].join(' · '),
+          year: ReferenceData.yearLabel(
+            ref.watch(professionalYearProvider),
+          ),
           photoUrl: p?.photoUrl ?? user?.photoURL,
-          onTap: () => context.open('/profile/info'),
+          onEditProfile: () => context.open('/profile/edit'),
+          onChangeYear: () => context.open('/profile/edit'),
         ),
         const SizedBox(height: 20),
         TextField(
@@ -797,14 +806,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     tooltip: 'Clear search',
                     icon: const Icon(Icons.close_rounded),
                     onPressed: () => setState(_search.clear),
-                  ),
+                ),
           ),
         ),
+        const SizedBox(height: 20),
+        SettingsCard(
+          raised: true,
+          children: [
+            SettingsRow(
+              title: 'Show announcements',
+              trailing: AccountToggle(
+                label: 'Show announcements',
+                value: notif,
+                onChanged: (v) => ref
+                    .read(boolPrefProvider('pref_announcements').notifier)
+                    .set(v),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
         if (_matches(
           'personal academic professional year profile app updates release',
         )) ...[
           const AccountSectionHeader('Personal & academic'),
           SettingsCard(
+            raised: true,
             children: [
               if (_matches('professional year profile academic'))
                 SettingsRow(
@@ -841,20 +868,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
         ],
-        if (_matches('notifications announcements')) ...[
-          const AccountSectionHeader('Notifications'),
+        if (_matches('accessibility text size font scale reduce motion animation')) ...[
+          const AccountSectionHeader('Accessibility'),
           SettingsCard(
             children: [
               SettingsRow(
-                title: 'Show announcements',
-                trailing: AccountToggle(
-                  label: 'Show announcements',
-                  value: notif,
-                  onChanged: (v) => ref
-                      .read(boolPrefProvider('pref_announcements').notifier)
-                      .set(v),
+                title: 'Text size',
+                value: '${(textScale * 100).round()}%',
+                subtitle: 'Adjust text size without changing your phone settings',
+                onTap: () => _chooseTextScale(context, ref, textScale),
+              ),
+              SettingsRow(
+                title: 'Reduce motion',
+                subtitle: 'Use fewer moving transitions throughout the app',
+                trailing: Switch.adaptive(
+                  value: reduceMotion,
+                  onChanged: (value) => ref
+                      .read(boolPrefProvider('pref_reduce_motion').notifier)
+                      .set(value),
                 ),
               ),
+            ],
+          ),
+        ],
+        ...[
+          const AccountSectionHeader('Notifications'),
+          SettingsCard(
+            children: [
               SettingsRow(
                 title: 'Notification inbox',
                 onTap: () => context.push('/notifications'),
@@ -925,6 +965,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
         ],
+        if (_matches('tutorial guide walkthrough help')) ...[
+          const AccountSectionHeader('Help & support'),
+          SettingsCard(
+            children: [
+              SettingsRow(
+                title: 'Replay app tutorial',
+                subtitle: 'A quick guide to your study library and offline files',
+                onTap: () => context.push('/tutorial'),
+              ),
+              SettingsRow(
+                title: 'Contact support',
+                onTap: () => context.push('/contact'),
+              ),
+            ],
+          ),
+        ],
         if (_matches('about version')) ...[
           const SizedBox(height: 22),
           SettingsCard(
@@ -944,6 +1000,78 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     );
+  }
+}
+
+Future<void> _chooseTextScale(
+  BuildContext context,
+  WidgetRef ref,
+  double current,
+) async {
+  var selected = current;
+  final next = await showModalBottomSheet<double>(
+    context: context,
+    backgroundColor: AccountStyle.cardOf(context),
+    showDragHandle: true,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (context, setSheetState) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AccountSectionHeader('Text size'),
+              Text(
+                '${(selected * 100).round()}% preview',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18 * selected,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Slider(
+                value: selected,
+                min: .85,
+                max: 1.35,
+                divisions: 10,
+                label: '${(selected * 100).round()}%',
+                onChanged: (value) =>
+                    setSheetState(() => selected = value),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: const [
+                  Text('Smaller'),
+                  Text('Larger'),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, 1.0),
+                      child: const Text('Reset'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, selected),
+                      child: const Text('Apply'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+  if (next != null && context.mounted) {
+    ref.read(doublePrefProvider('pref_text_scale').notifier).set(next);
   }
 }
 

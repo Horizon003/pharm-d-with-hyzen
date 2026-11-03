@@ -24,7 +24,7 @@ abstract final class AccountStyle {
   static Color secondaryOf(BuildContext context) =>
       isDark(context) ? secondary : const Color(0xFF626269);
   static Color linkOf(BuildContext context) =>
-      isDark(context) ? link : const Color(0xFF1976C9);
+      isDark(context) ? Colors.white : const Color(0xFF111111);
   static Color avatarOf(BuildContext context) =>
       isDark(context) ? const Color(0xFF1D1D20) : const Color(0xFFE9EAED);
 
@@ -446,6 +446,138 @@ class AccountProfileCard extends StatelessWidget {
       ),
     ],
   );
+}
+
+class WorkspaceIdentityCard extends StatelessWidget {
+  const WorkspaceIdentityCard({
+    super.key,
+    required this.name,
+    required this.subtitle,
+    required this.year,
+    required this.photoUrl,
+    required this.onEditProfile,
+    required this.onChangeYear,
+  });
+
+  final String name, subtitle, year;
+  final String? photoUrl;
+  final VoidCallback onEditProfile, onChangeYear;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = AccountStyle.isDark(context);
+    final foreground = dark ? Colors.white : const Color(0xFF111111);
+    final muted = dark ? const Color(0xFFB6B6BC) : const Color(0xFF66666D);
+    final surface = dark
+        ? const Color(0xFF222226)
+        : const Color(0xFFFFFFFF);
+    final border = dark
+        ? const Color(0xFF414146)
+        : const Color(0xFFE5E5E8);
+    return Material(
+      color: surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          children: [
+            Text(
+              'MY WORKSPACE',
+              style: TextStyle(
+                color: muted,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 14),
+            AccountAvatar(
+              photoUrl: photoUrl,
+              fallback: name,
+              radius: 38,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: foreground,
+                fontSize: 21,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -.4,
+              ),
+            ),
+            if (subtitle.isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: muted, fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              year,
+              style: TextStyle(
+                color: foreground,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 330;
+                final edit = OutlinedButton.icon(
+                  onPressed: onEditProfile,
+                  icon: const Icon(Icons.edit_outlined, size: 17),
+                  label: const Text('Edit profile'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: foreground,
+                    side: BorderSide(color: border),
+                    minimumSize: const Size(0, 46),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                );
+                final change = FilledButton.icon(
+                  onPressed: onChangeYear,
+                  icon: const Icon(Icons.school_outlined, size: 17),
+                  label: const Text('My year'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: foreground,
+                    foregroundColor: dark ? Colors.black : Colors.white,
+                    minimumSize: const Size(0, 46),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                );
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [edit, const SizedBox(height: 8), change],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: edit),
+                    const SizedBox(width: 10),
+                    Expanded(child: change),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class AccountSectionHeader extends StatelessWidget {

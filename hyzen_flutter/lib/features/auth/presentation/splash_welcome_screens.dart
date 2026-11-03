@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../app/providers.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/rive_mascot.dart';
@@ -43,15 +45,49 @@ class SplashScreen extends StatelessWidget {
   );
 }
 
-class WelcomeScreen extends StatefulWidget {
-  const WelcomeScreen({super.key});
+class WelcomeScreen extends ConsumerStatefulWidget {
+  const WelcomeScreen({super.key, this.replay = false});
+  final bool replay;
   @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
+  ConsumerState<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final _pages = PageController();
   int _index = 0;
+  bool _checkingFirstRun = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final completed =
+          ref.read(sharedPrefsProvider).getBool('pref_tutorial_completed') ??
+          false;
+      if (completed && !widget.replay) {
+        context.go('/login');
+        return;
+      }
+      setState(() => _checkingFirstRun = false);
+    });
+  }
+
+  Future<void> _finish({String destination = '/login'}) async {
+    await ref
+        .read(sharedPrefsProvider)
+        .setBool('pref_tutorial_completed', true);
+    if (!mounted) return;
+    if (widget.replay) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/home');
+      }
+    } else {
+      context.go(destination);
+    }
+  }
   static const _content = [
     (
       'welcome',
@@ -78,6 +114,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    if (_checkingFirstRun) {
+      return const Scaffold(
+        body: Center(child: HyzenBrandIcon(size: 52)),
+      );
+    }
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -238,7 +279,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         duration: HMotion.medium,
                         curve: Curves.easeOut,
                       )
-                    : context.push('/login'),
+                    : _finish(),
                 style: FilledButton.styleFrom(
                   backgroundColor: t.brightness == Brightness.dark
                       ? Colors.white
@@ -261,11 +302,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton(
-                  onPressed: () => context.push('/login'),
+                  onPressed: _finish,
                   child: const Text('Skip'),
                 ),
                 TextButton(
-                  onPressed: () => context.push('/register/personal'),
+                  onPressed: () => _finish(destination: '/register/personal'),
                   child: const Text('Create account'),
                 ),
               ],

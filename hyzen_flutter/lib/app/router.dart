@@ -33,6 +33,7 @@ import 'providers.dart';
 
 const _publicPrefixes = [
   '/welcome',
+  '/tutorial',
   '/login',
   '/forgot-password',
   '/register',
@@ -85,7 +86,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         (p) => loc == p || loc.startsWith('$p/'),
       );
       if (!signedIn) return isPublic ? null : '/welcome';
-      if (loc == '/register/success' || loc.startsWith('/legal/')) return null;
+      if (loc == '/register/success' ||
+          loc == '/tutorial' ||
+          loc.startsWith('/legal/')) {
+        return null;
+      }
       if (registrationInFlight && loc.startsWith('/register/')) return null;
       if (loc.startsWith('/register/') &&
           ref.read(lastCreatedProfileProvider)?.uid == auth.valueOrNull?.uid) {
@@ -101,6 +106,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/welcome', builder: (_, __) => const WelcomeScreen()),
+      GoRoute(
+        path: '/tutorial',
+        builder: (_, __) => const WelcomeScreen(replay: true),
+      ),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(
         path: '/forgot-password',

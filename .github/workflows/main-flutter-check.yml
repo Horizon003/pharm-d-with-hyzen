@@ -1,0 +1,109 @@
+name: Main Flutter analyze and tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'hyzen_flutter/**'
+      - '.github/workflows/main-flutter-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'hyzen_flutter/**'
+      - '.github/workflows/main-flutter-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-flutter-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.4'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: hyzen_flutter
+      - name: Analyze
+        working-directory: hyzen_flutter
+        run: flutter analyze --no-pub
+      - name: Tests
+        working-directory: hyzen_flutter
+        run: flutter test --no-pub -r expanded
+      - name: Build browser preview (no APK)
+        working-directory: hyzen_flutter
+        run: flutter build web --release --no-pub --base-href "/pharm-d-with-hyzen/"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hyzen-web-preview-pr-${{ github.event.number || github.run_number }}
+          path: hyzen_flutter/build/web
+          retention-days: 14
+          if-no-files-found: error
+
+  apk:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free runner disk without removing Android build tools
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/local/lib/android/sdk/system-images/* || true
+          sudo rm -rf /usr/share/dotnet /usr/local/share/powershell /opt/ghc /usr/share/swift || true
+          sudo apt-get clean
+          df -h /
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: hyzen_flutter/android/*.gradle*
+      - uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/25.1.8937393
+            /usr/local/lib/android/sdk/ndk/27.0.12077973
+            /usr/local/lib/android/sdk/cmake/3.22.1
+          key: android-native-${{ runner.os }}-ndk25-27-cmake322-${{ hashFiles('hyzen_flutter/pubspec.lock', 'hyzen_flutter/android/**/build.gradle*') }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.4'
+          channel: stable
+          cache: true
+      - name: Restore owner signing key
+        working-directory: hyzen_flutter
+        env:
+          KEYSTORE_BASE64: ${{ secrets.HYZEN_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.HYZEN_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.HYZEN_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.HYZEN_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64" && test -n "$STORE_PASSWORD" && test -n "$KEY_PASSWORD" && test -n "$KEY_ALIAS"
+          mkdir -p android/signing
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/signing/hyzen-release.jks
+          chmod 600 android/signing/hyzen-release.jks
+          printf 'storeFile=signing/hyzen-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/key.properties
+          chmod 600 android/key.properties
+      - name: Dependencies
+        working-directory: hyzen_flutter
+        run: flutter pub get
+      - name: Build Android APK
+        working-directory: hyzen_flutter
+        run: flutter build apk --release --no-pub --no-shrink
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyzen-release-apk-${{ github.run_number }}
+          path: hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14

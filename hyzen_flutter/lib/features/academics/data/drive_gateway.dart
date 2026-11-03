@@ -13,11 +13,12 @@ class DocumentRequest {
     this.name,
     this.size,
     this.version,
+    this.thumbnailUrl,
     this.publicFallback = false,
   });
   final Uri uri;
   final Map<String, String> headers;
-  final String? mimeType, name, version;
+  final String? mimeType, name, version, thumbnailUrl;
   final int? size;
   final bool publicFallback;
 }
@@ -84,7 +85,7 @@ class DriveGateway {
       {
         if (metadata)
           'fields':
-              'id,name,mimeType,size,version,modifiedTime,capabilities(canDownload)',
+              'id,name,mimeType,size,version,modifiedTime,thumbnailLink,capabilities(canDownload)',
         if (!metadata && !export) 'alt': 'media',
         if (export) 'mimeType': 'application/pdf',
         if (apiKey != null && apiKey.isNotEmpty) 'key': apiKey,
@@ -192,6 +193,7 @@ class DriveGateway {
       name: metadata['name'] as String?,
       size: int.tryParse('${metadata['size']}'),
       version: '${metadata['version'] ?? metadata['modifiedTime'] ?? ''}',
+      thumbnailUrl: metadata['thumbnailLink'] as String?,
     );
   }
 

@@ -1021,13 +1021,47 @@ void main() {
   testWidgets('onboarding mounts a semantic mascot state for every page', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: WelcomeScreen()));
+    final tutorialContainer = ProviderContainer(
+      overrides: [sharedPrefsProvider.overrideWithValue(prefs)],
+    );
+    addTearDown(tutorialContainer.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: tutorialContainer,
+        child: const MaterialApp(home: WelcomeScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
     expect(find.byType(HyzenRiveMascot), findsOneWidget);
     await tester.drag(find.byType(PageView), const Offset(-500, 0));
     await tester.pumpAndSettle();
     expect(find.byType(HyzenRiveMascot), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  test('accessibility preferences persist and clamp text scaling', () async {
+    final accessibility = ProviderContainer(
+      overrides: [sharedPrefsProvider.overrideWithValue(prefs)],
+    );
+    addTearDown(accessibility.dispose);
+
+    accessibility
+        .read(doublePrefProvider('pref_text_scale').notifier)
+        .set(1.2);
+    accessibility
+        .read(boolPrefProvider('pref_reduce_motion').notifier)
+        .set(true);
+
+    expect(accessibility.read(doublePrefProvider('pref_text_scale')), 1.2);
+    expect(accessibility.read(boolPrefProvider('pref_reduce_motion')), isTrue);
+    expect(prefs.getDouble('pref_text_scale'), 1.2);
+    expect(prefs.getBool('pref_reduce_motion'), isTrue);
+
+    accessibility
+        .read(doublePrefProvider('pref_text_scale').notifier)
+        .set(9);
+    expect(accessibility.read(doublePrefProvider('pref_text_scale')), 1.35);
+  });
+
   testWidgets(
     'Login remains usable at 320px with large text, both themes and keyboard',
     (tester) async {

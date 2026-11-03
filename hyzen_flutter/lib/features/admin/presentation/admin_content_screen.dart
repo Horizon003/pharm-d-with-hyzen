@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/errors/app_error.dart';
@@ -7,6 +8,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/ui_kit.dart';
 import '../../academics/domain/models.dart';
+import '../../downloads/domain/download_record.dart';
 import '../../content/data/content_providers.dart';
 import '../../shell/app_shell.dart';
 import '../../shop/data/shop_controllers.dart';
@@ -158,9 +160,28 @@ class _AdminContentScreenState extends ConsumerState<AdminContentScreen> {
     });
   }
 
+  void _preview(Map<String, dynamic> node) {
+    final url = '${node['pdfUrl'] ?? ''}'.trim();
+    if (url.isEmpty) {
+      showHSnack(context, 'This file has no preview link.', error: true);
+      return;
+    }
+    context.push(
+      '/viewer',
+      extra: FileRef(
+        kind: widget.kind,
+        title: '${node[labelKey(_path.length)] ?? 'Document'}',
+        url: url,
+        trail: [..._trail],
+      ),
+    );
+  }
+
   Future<void> _action(String action, Map<String, dynamic> node) async {
     final id = '${node['id']}';
     if (action == 'edit') return _edit(node);
+    if (action == 'preview') return _preview(node);
+    final visible = node['published'] != false && node['published'] != 'false';
     if (action == 'delete') {
       if (!await confirmDialog(
         context,
@@ -174,7 +195,20 @@ class _AdminContentScreenState extends ConsumerState<AdminContentScreen> {
       }
     }
     if (!mounted) return;
-    final visible = node['published'] != false && node['published'] != 'false';
+    if (action == 'publish') {
+      final publish = !visible;
+      if (!await confirmDialog(
+        context,
+        title: publish ? 'Publish to students?' : 'Hide from students?',
+        message: publish
+            ? 'This item will become visible in the student library after the server confirms the change.'
+            : 'Students will no longer see this item after the server confirms the change. The original Drive file will remain untouched.',
+        confirm: publish ? 'Publish' : 'Hide',
+      )) {
+        return;
+      }
+    }
+    if (!mounted) return;
     await _apply((list) {
       list.sort((a, b) => _order(a).compareTo(_order(b)));
       final index = list.indexWhere((m) => '${m['id']}' == id);
@@ -310,7 +344,7 @@ class _AdminContentScreenState extends ConsumerState<AdminContentScreen> {
                                 _path.add('${node['id']}');
                               });
                             } else {
-                              _edit(node);
+                              _preview(node);
                             }
                           },
                     trailing: PopupMenuButton<String>(
@@ -318,6 +352,11 @@ class _AdminContentScreenState extends ConsumerState<AdminContentScreen> {
                       onSelected: (a) => _action(a, node),
                       itemBuilder: (_) => [
                         const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        if (_path.length == 5)
+                          const PopupMenuItem(
+                            value: 'preview',
+                            child: Text('Preview as student'),
+                          ),
                         PopupMenuItem(
                           value: 'publish',
                           child: Text(

@@ -12,6 +12,8 @@ class HyzenApp extends ConsumerWidget {
   const HyzenApp({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final textScale = ref.watch(doublePrefProvider('pref_text_scale'));
+    final reduceMotion = ref.watch(boolPrefProvider('pref_reduce_motion'));
     return MaterialApp.router(
       title: Brand.appName,
       debugShowCheckedModeBanner: false,
@@ -19,14 +21,30 @@ class HyzenApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(ref.watch(paletteColorProvider)),
       themeMode: ref.watch(themeModeProvider),
       routerConfig: ref.watch(routerProvider),
-      builder: (context, child) =>
-          ColoredBox(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            child: Align(alignment: Alignment.topCenter, child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1080),
-              child: ExternalOpenGate(child: child ?? const SizedBox.shrink()),
-            )),
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        final systemScale = media.textScaler.scale(1);
+        final effectiveScale =
+            (systemScale * textScale).clamp(0.85, 2.0).toDouble();
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: TextScaler.linear(effectiveScale),
+            disableAnimations: media.disableAnimations || reduceMotion,
           ),
+          child: ColoredBox(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1080),
+                child: ExternalOpenGate(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

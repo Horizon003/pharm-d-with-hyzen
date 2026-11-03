@@ -1,7 +1,9 @@
 # PHARM D WITH HYZEN
 
-Flutter Android app, com.hyzen.pharmd, source version 1.4.2+10.
+Flutter Android app, com.hyzen.pharmd, source version **1.5.3+12**.
 Read docs/COMPACT_READER_1_4_2.md first for new changes and validation status.
+
+Pending module work includes the student-facing admin preview, confirmed content publishing, nested Study File Explorer with real PDF previews, searchable Settings accessibility controls, and first-run tutorial persistence/replay. The PR validation workflow runs `flutter analyze` and `flutter test`; it does not build an APK.
 Use Flutter 3.35.4 / Dart 3.9.2 and JDK 17.
 
 PDF Studio includes Create PDF / native document scanning, on-device Latin OCR,

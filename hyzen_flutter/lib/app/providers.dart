@@ -130,6 +130,21 @@ final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
   ThemeModeNotifier.new,
 );
 
+class DoublePref extends FamilyNotifier<double, String> {
+  @override
+  double build(String key) =>
+      ref.watch(sharedPrefsProvider).getDouble(key) ?? 1.0;
+
+  void set(double value) {
+    state = value.clamp(0.85, 1.35).toDouble();
+    ref.read(sharedPrefsProvider).setDouble(arg, state);
+  }
+}
+
+final doublePrefProvider = NotifierProvider.family<DoublePref, double, String>(
+  DoublePref.new,
+);
+
 class BoolPref extends FamilyNotifier<bool, String> {
   @override
   bool build(String key) =>
@@ -137,6 +152,7 @@ class BoolPref extends FamilyNotifier<bool, String> {
   static const _defaults = {
     'pref_wifi_only': false,
     'pref_announcements': true,
+    'pref_reduce_motion': false,
   };
   void set(bool v) {
     state = v;

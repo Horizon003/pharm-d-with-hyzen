@@ -16,6 +16,7 @@ import '../../content/data/content_providers.dart';
 import '../../content/domain/site_models.dart';
 import '../../shop/data/shop_controllers.dart';
 import '../data/admin_repository.dart';
+import 'admin_draft_preview.dart';
 
 class AdminField {
   const AdminField(
@@ -401,12 +402,14 @@ class AdminForm extends StatefulWidget {
     required this.onSave,
     this.saveLabel = 'Save changes',
     this.header,
+    this.onPreview,
     this.onlyChanged = false,
   });
   final bool onlyChanged;
   final List<AdminField> fields;
   final Map<String, dynamic> initial;
   final Future<void> Function(Map<String, dynamic>) onSave;
+  final Future<void> Function(Map<String, dynamic>)? onPreview;
   final String saveLabel;
   final Widget? header;
   @override
@@ -688,6 +691,22 @@ class _AdminFormState extends State<AdminForm> {
                     ],
                   ),
           ),
+        if (widget.onPreview != null)
+          OutlinedButton.icon(
+            onPressed: busy || upload != null
+                ? null
+                : () async {
+                    if (!form.currentState!.validate()) return;
+                    setState(() => busy = true);
+                    try {
+                      await widget.onPreview!(collect());
+                    } finally {
+                      if (mounted) setState(() => busy = false);
+                    }
+                  },
+            icon: const Icon(Icons.visibility_outlined),
+            label: const Text('Preview as student'),
+          ),
         HButton(
           label: widget.saveLabel,
           loading: busy,
@@ -764,71 +783,116 @@ class AdminDocumentScreen extends ConsumerWidget {
                 fields: documentFields(section),
                 initial: initial,
                 saveLabel: section == 'notice'
-                    ? 'Publish notification'
+                    ? 'Save notification'
                     : 'Save changes',
                 header: section == 'notice' || section == 'announcement'
-                    ? Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: HeroPanel(
-                          eyebrow: 'Student preview',
-                          title:
-                              '${initial[section == 'notice' ? 'title' : 'text'] ?? 'A message from Hyzen'}',
-                          subtitle: '${initial['body'] ?? ''}',
-                          icon: Icons.campaign_rounded,
+                    ? const Padding(
+                        padding: EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          'Preview the student-facing version before saving or publishing. Previewing never changes live content.',
                         ),
                       )
                     : null,
-                onSave: (updates) => adminAction(
-                  context,
-                  ref,
-                  () async {
-                    final changed = <String, dynamic>{
-                      for (final e in updates.entries)
-                        if (jsonEncode(getPath(initial, e.key)) !=
-                            jsonEncode(e.value))
-                          e.key: e.value,
-                    };
-                    if (section == 'notice') {
-                      await ref.read(adminRepositoryProvider).patch(key, {
-                        'fullScreenNotice': {
-                          ...initial,
-                          ...updates,
-                          'id': legacyUid('notice'),
-                          'enabled': updates['enabled'],
-                          'publishedAt': DateTime.now()
-                              .toUtc()
-                              .toIso8601String(),
-                        },
-                      });
-                    } else {
-                      if (section == 'announcement') {
-                        if (updates.containsKey('gradient.from')) {
+                onPreview: section == 'notice' || section == 'announcement'
+                    ? (updates) => showAdminDraftPreview(
+                        context,
+                        section,
+                        mergeAdminDraft(initial, updates),
+                      )
+                    : null,
+                onSave: (updates) async {
+                  if (section == 'notice' &&
+                      updates['enabled'] == true &&
+                      initial['enabled'] != true &&
+                      !await confirmDialog(
+                        context,
+                        title: 'Publish this notification?',
+                        message:
+                            'Students may see this notification after the server confirms the change.',
+                        confirm: 'Publish',
+                      )) {
+                    return;
+                  }
+                  if (!context.mounted) return;
+                  if (section == 'announcement' &&
+                      updates['enabled'] == true &&
+                      initial['enabled'] != true &&
+                      !await confirmDialog(
+                        context,
+                        title: 'Publish this announcement?',
+                        message:
+                            'The announcement will become visible to students after the server confirms the change.',
+                        confirm: 'Publish',
+                      )) {
+                    return;
+                  }
+                  if (!context.mounted) return;
+                  await adminAction(
+                    context,
+                    ref,
+                    () async {
+                      final changed = <String, dynamic>{
+                        for (final e in updates.entries)
+                          if (jsonEncode(getPath(initial, e.key)) !=
+                              jsonEncode(e.value))
+                            e.key: e.value,
+                      };
+                      if (section == 'notice') {
+                        await ref.read(adminRepositoryProvider).patch(key, {
+                          'fullScreenNotice': {
+                            ...initial,
+                            ...updates,
+                            'id': legacyUid('notice'),
+                            'enabled': updates['enabled'],
+                            'publishedAt': DateTime.now()
+                                .toUtc()
+                                .toIso8601String(),
+                          },
+                        });
+                      } else {
+                        if (section == 'announcement' &&
+                            updates.containsKey('gradient.from')) {
                           changed['backgroundColor'] = updates['gradient.from'];
                         }
+                        await ref
+                            .read(adminRepositoryProvider)
+                            .patch(key, changed);
                       }
-                      await ref
-                          .read(adminRepositoryProvider)
-                          .patch(key, changed);
-                    }
-                    await refreshContent(ref, [key]);
-                  },
-                  message: section == 'notice'
-                      ? 'Notification published'
-                      : 'Changes saved',
-                ),
+                      await refreshContent(ref, [key]);
+                    },
+                    message: section == 'notice'
+                        ? (updates['enabled'] == true
+                            ? 'Notification published'
+                            : 'Notification saved')
+                        : 'Changes saved',
+                  );
+                },
               ),
               if (section == 'notice')
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: OutlinedButton.icon(
-                    onPressed: () => adminAction(
-                      context,
-                      ref,
-                      () => ref.read(adminRepositoryProvider).patch(key, {
-                        'fullScreenNotice.enabled': false,
-                      }),
-                      message: 'Notification withdrawn',
-                    ),
+                    onPressed: () async {
+                      if (!await confirmDialog(
+                        context,
+                        title: 'Withdraw this notification?',
+                        message:
+                            'Students will stop seeing the current full-screen notification.',
+                        confirm: 'Withdraw',
+                        destructive: true,
+                      )) {
+                        return;
+                      }
+                      if (!context.mounted) return;
+                      await adminAction(
+                        context,
+                        ref,
+                        () => ref.read(adminRepositoryProvider).patch(key, {
+                          'fullScreenNotice.enabled': false,
+                        }),
+                        message: 'Notification withdrawn',
+                      );
+                    },
                     icon: const Icon(Icons.visibility_off_outlined),
                     label: const Text('Withdraw current notification'),
                   ),
@@ -919,7 +983,26 @@ class _AdminListState extends ConsumerState<AdminListScreen> {
                   fields: fields,
                   initial: initial,
                   onlyChanged: !isNew,
+                  onPreview: widget.section == 'blogs'
+                      ? (values) => showAdminBlogPreview(
+                          c,
+                          mergeAdminDraft(initial, values),
+                        )
+                      : null,
                   onSave: (values) async {
+                    if (widget.section == 'blogs' &&
+                        values['status'] == 'published' &&
+                        initial['status'] != 'published' &&
+                        !await confirmDialog(
+                          c,
+                          title: 'Publish this article?',
+                          message:
+                              'The article will become visible in the student blog after the save is confirmed.',
+                          confirm: 'Publish',
+                        )) {
+                      return;
+                    }
+                    if (!c.mounted) return;
                     try {
                       await commit(values);
                       if (c.mounted) Navigator.pop(c);
@@ -947,6 +1030,23 @@ class _AdminListState extends ConsumerState<AdminListScreen> {
 
   Future<void> action(String action, Map<String, dynamic> item) async {
     if (action == 'edit') return editItem(item);
+    if (action == 'preview' && widget.section == 'blogs') {
+      return showAdminBlogPreview(context, item);
+    }
+    if (widget.section == 'blogs' && action == 'visibility') {
+      final publish = item['status'] != 'published';
+      if (!await confirmDialog(
+        context,
+        title: publish ? 'Publish this article?' : 'Hide this article?',
+        message: publish
+            ? 'Students will be able to read this article after the server confirms the change.'
+            : 'The article will no longer appear in the student blog.',
+        confirm: publish ? 'Publish' : 'Hide',
+      )) {
+        return;
+      }
+    }
+    if (!mounted) return;
     if (action == 'delete' &&
         !await confirmDialog(
           context,
@@ -1127,6 +1227,11 @@ class _AdminListState extends ConsumerState<AdminListScreen> {
                                   value: 'edit',
                                   child: Text('Edit'),
                                 ),
+                                if (widget.section == 'blogs')
+                                  const PopupMenuItem(
+                                    value: 'preview',
+                                    child: Text('Preview as student'),
+                                  ),
                                 if ([
                                   'products',
                                   'blogs',
