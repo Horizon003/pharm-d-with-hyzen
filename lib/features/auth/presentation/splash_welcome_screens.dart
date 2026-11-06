@@ -4,6 +4,10 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/config/brand.dart';
 import '../../../core/widgets/hyzen_art.dart';
 
+extension ResizeImageCompatibility on ResizeImage {
+  ImageProvider get image => imageProvider;
+}
+
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
   @override
