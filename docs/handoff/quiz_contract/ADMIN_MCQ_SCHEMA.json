@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0-handoff-proposal",
+  "purpose": "Admin-only CSV import contract; sample rows are DEMO/draft, not a live question set.",
+  "required_columns": [
+    "question_id",
+    "professional_year",
+    "subject",
+    "topic",
+    "question",
+    "option_a",
+    "option_b",
+    "option_c",
+    "option_d",
+    "correct_option"
+  ],
+  "optional_columns": [
+    "explanation",
+    "difficulty",
+    "status"
+  ],
+  "all_columns": [
+    "question_id",
+    "professional_year",
+    "subject",
+    "topic",
+    "question",
+    "option_a",
+    "option_b",
+    "option_c",
+    "option_d",
+    "correct_option",
+    "explanation",
+    "difficulty",
+    "status"
+  ],
+  "fields": {
+    "question_id": {
+      "type": "string",
+      "unique": true,
+      "max_length": 128
+    },
+    "professional_year": {
+      "type": "controlled_year",
+      "example": "1",
+      "permitted_initial": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "actual_mapping": "verify app enrollment/year taxonomy"
+    },
+    "subject": {
+      "type": "controlled_subject",
+      "max_length": 150
+    },
+    "topic": {
+      "type": "string",
+      "max_length": 180
+    },
+    "question": {
+      "type": "string",
+      "min_length": 5
+    },
+    "option_a": {
+      "type": "string",
+      "min_length": 1
+    },
+    "option_b": {
+      "type": "string",
+      "min_length": 1
+    },
+    "option_c": {
+      "type": "string",
+      "min_length": 1
+    },
+    "option_d": {
+      "type": "string",
+      "min_length": 1
+    },
+    "correct_option": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "secret": true
+    },
+    "explanation": {
+      "type": "string",
+      "optional": true,
+      "secret_during_test": true
+    },
+    "difficulty": {
+      "enum": [
+        "easy",
+        "medium",
+        "hard"
+      ],
+      "optional": true
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "active"
+      ],
+      "default": "draft"
+    }
+  },
+  "import_rules": [
+    "server-side admin authentication",
+    "UTF-8 CSV with BOM accepted",
+    "preview before commit",
+    "reject duplicates",
+    "verify year/subject mapping",
+    "audit versions",
+    "never overwrite questions referenced by completed tests",
+    "never expose answer keys in student APIs",
+    "validate capacity for per-user no-repeat attempts"
+  ],
+  "quiz_rules": {
+    "standard": {
+      "subject_count": 1,
+      "max_attempts_per_day": 3,
+      "minimum_cooldown_minutes": 60,
+      "no_question_repeats_per_user_event": true
+    },
+    "special": {
+      "minimum_subject_count": 2,
+      "max_attempts_per_approved_user": 1,
+      "shuffled_across_subjects": true
+    }
+  },
+  "published_curriculum_note": "Demo mapping only, university-dependent; admin must approve actual subject/year associations."
+}

@@ -1,0 +1,127 @@
+{
+  "approval": "User: Okay hain yaay (2026-10-24), following Gen Z concept board",
+  "format": "320x320 RGB WebP quality83",
+  "total_asset_bytes": 114498,
+  "assets": [
+    {
+      "id": "genz_01",
+      "path": "assets/avatars/genz_01.webp",
+      "description": "South Asian young adult man, textured curtain haircut, slate hoodie, teal T-shirt, confident friendly smile",
+      "bytes": 8986,
+      "sha256": "d77fe45a3e300a0b3887cd4f961db2cfd1e4592e0b5c88e8b08a878a43e025ad",
+      "generator": "built-in image_gen",
+      "source_file": "exec-18d1cd91-5df7-4072-a42e-f1b7df2fc81b.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_02",
+      "path": "assets/avatars/genz_02.webp",
+      "description": "South Asian young adult woman, teal hijab, ivory relaxed sweatshirt, friendly smile",
+      "bytes": 9664,
+      "sha256": "75d0e0c0730be0fc98bd12585b42a7283f0c7ba26f1a79718a039f17d79a2dc0",
+      "generator": "built-in image_gen",
+      "source_file": "exec-be5fc649-877c-4d33-8047-9d46edbd4590.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_03",
+      "path": "assets/avatars/genz_03.webp",
+      "description": "dark-skinned young adult woman, curly hair in two buns with loose curls, teal varsity jacket, ivory T-shirt",
+      "bytes": 13492,
+      "sha256": "1aa249084088fa90543a99ec644ea4bb6c2f744ee91753a99efaee126a849217",
+      "generator": "built-in image_gen",
+      "source_file": "exec-5f73efa5-0854-4397-8f98-f5ed98494d76.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_04",
+      "path": "assets/avatars/genz_04.webp",
+      "description": "South Asian young adult man, tousled wavy hair, thin round glasses, subtle stubble, slate overshirt, ivory T-shirt",
+      "bytes": 10290,
+      "sha256": "b0165056d1e8d7b5ede05577df49c78da06561b1a521c3e3b344e0ddc48c162a",
+      "generator": "built-in image_gen",
+      "source_file": "exec-1c83ed10-399e-425e-81d0-80fc050818c2.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_05",
+      "path": "assets/avatars/genz_05.webp",
+      "description": "young adult woman, medium warm brown skin, shoulder-length dark bob, round glasses, ivory cardigan, teal T-shirt",
+      "bytes": 9906,
+      "sha256": "89be8c42d67d00d854558f6eae00ec2874cd2e109dd1dd15d7109ace82857c3a",
+      "generator": "built-in image_gen",
+      "source_file": "exec-c687d816-9006-4f84-a9b6-ef431f8c9063.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_06",
+      "path": "assets/avatars/genz_06.webp",
+      "description": "young adult man, deep brown skin, short textured curls, clean shaven, teal sweatshirt",
+      "bytes": 8328,
+      "sha256": "cc927a1c2fd7efec29264c8c9ce025244e763ece1f16e6558ccf255643dc0ee1",
+      "generator": "built-in image_gen",
+      "source_file": "exec-74cdc990-aabc-407c-bdd0-e302464f1eed.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_07",
+      "path": "assets/avatars/genz_07.webp",
+      "description": "young adult woman, light olive skin, long dark ponytail, slate hoodie, tiny earrings",
+      "bytes": 10034,
+      "sha256": "b8cb13f110a3274cc5e6b53e5be90725add26e88b9694cc7494b43791fe908be",
+      "generator": "built-in image_gen",
+      "source_file": "exec-3bcb0803-3f0b-471b-b000-d0fac7142ad5.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_08",
+      "path": "assets/avatars/genz_08.webp",
+      "description": "young adult man, medium brown skin, short dark hair under plain teal baseball cap, ivory sweatshirt",
+      "bytes": 7200,
+      "sha256": "bc8326195fd2b2ca7d18b8a5a897843d71eca35c9edef25af69b529246bed9df",
+      "generator": "built-in image_gen",
+      "source_file": "exec-9afb6c89-ca1d-483f-9289-8c79b7e5051c.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_09",
+      "path": "assets/avatars/genz_09.webp",
+      "description": "young adult woman, warm brown skin, ivory hijab, slate casual jacket, cheerful expressive face",
+      "bytes": 8128,
+      "sha256": "779b7ec642ad26f4ac95c2dd14e645d3b18cf4a1c14a078181fa7840e13686a4",
+      "generator": "built-in image_gen",
+      "source_file": "exec-440139db-675e-452c-850d-e9cc4b787009.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_10",
+      "path": "assets/avatars/genz_10.webp",
+      "description": "young adult East Asian man, straight dark side-parted hair, ivory hoodie, gentle smile",
+      "bytes": 7944,
+      "sha256": "9d01b749369546c9eb80f649b75df6c780eacaec086a6307a54c601f2d20b310",
+      "generator": "built-in image_gen",
+      "source_file": "exec-0392f8a7-398b-406f-8e44-02ee4b779539.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_11",
+      "path": "assets/avatars/genz_11.webp",
+      "description": "androgynous young adult student, medium olive skin, short curly hair, small round glasses, teal overshirt",
+      "bytes": 10948,
+      "sha256": "ef9fa380a860d381b41e4c8e10d17f76383ca05604a3fadaf8982a73e4b4a455",
+      "generator": "built-in image_gen",
+      "source_file": "exec-9273e2e1-8f9b-4721-887b-e5e1764c4d33.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    },
+    {
+      "id": "genz_12",
+      "path": "assets/avatars/genz_12.webp",
+      "description": "young adult woman, deep brown skin, long braids pulled back, slate sweatshirt, warm confident smile",
+      "bytes": 9578,
+      "sha256": "b99b91ff84ab0b7221841f1e343df13adc39b41f7696910da8d19058834c1b33",
+      "generator": "built-in image_gen",
+      "source_file": "exec-3f9345d7-00d2-419e-89f9-29bb7e74dd1e.png",
+      "provenance": "Generated for this project from owner-approved Gen Z concept. No third-party character reference; no exclusivity/copyright warranty asserted."
+    }
+  ]
+}

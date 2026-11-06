@@ -1,0 +1,37 @@
+name: Hyzen Firebase security review
+on:
+  pull_request:
+    branches: [main]
+    paths: [firebase-security/**, quiz-backend/**, .github/workflows/firebase-security-check.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hyzen-firebase-review-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: firebase-security/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: hyzen-firestore-emulator-14.11.2
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: firebase-security
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: quiz-backend
+      - name: Test production-derived candidates against local demo projects only
+        run: npm test
+        working-directory: firebase-security

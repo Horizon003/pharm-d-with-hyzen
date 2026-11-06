@@ -1,0 +1,47 @@
+[
+  {
+    "path": "assets/illustrations/genz_welcome.webp",
+    "source_file": "exec-9d2421f7-9fd7-4e38-bda7-63551fa6839c.png",
+    "brief": "Young adult Gen Z man from reference A in slate hoodie sitting at a minimal desk, studying an open notebook beside a teal tablet and small book stack. Friendly calm campus study mood.",
+    "bytes": 74300,
+    "sha256": "01b2b27777f342f4fa8361ceaaa43e69e05d50f6bad100fd69b0d1537e38541f",
+    "generator": "built-in image_gen",
+    "format": "640x640 RGBA WebP"
+  },
+  {
+    "path": "assets/illustrations/genz_library.webp",
+    "source_file": "exec-186c6b87-0ce1-4554-99ce-baca9386e713.png",
+    "brief": "Young adult Gen Z woman from reference B wearing teal hijab and ivory casual sweatshirt, organizing a short stack of teal and slate books beside a simple open folder with blank sheets. Organized academic library concept.",
+    "bytes": 45230,
+    "sha256": "1b8b3c995473657e171b94aea2eac978c715c1be8b9bbe2b86dd50b818a1c70b",
+    "generator": "built-in image_gen",
+    "format": "640x640 RGBA WebP"
+  },
+  {
+    "path": "assets/illustrations/genz_downloads.webp",
+    "source_file": "exec-8b166b91-268c-44a7-9685-dd31984f9ad4.png",
+    "brief": "Young adult Gen Z woman from reference C in teal jacket, holding a tablet with a blank slate screen beside two blank document sheets with restrained corner brackets. Documents saved for offline study concept, no fake progress or status graphics.",
+    "bytes": 70490,
+    "sha256": "310e1b8c3b53c93263d30d2f226d4d0ee58430f5388f854e51be57ebfd39cc39",
+    "generator": "built-in image_gen",
+    "format": "640x640 RGBA WebP"
+  },
+  {
+    "path": "assets/illustrations/genz_search.webp",
+    "source_file": "exec-b6407a2c-677f-479c-898e-8e945599369c.png",
+    "brief": "Minimal sculptural magnifying glass leaning beside an open folder with one blank sheet, search study materials concept. No people.",
+    "bytes": 33332,
+    "sha256": "a23712a7d49ad8267e6017d7f7ab296be0d2a254e83b87915f45ea8a6215dd22",
+    "generator": "built-in image_gen",
+    "format": "640x640 RGBA WebP"
+  },
+  {
+    "path": "assets/illustrations/genz_empty.webp",
+    "source_file": "exec-342b7f98-bbe6-4b8e-98e1-24bb5f4cf420.png",
+    "brief": "Minimal sculptural open teal folder with a single blank ivory sheet and a slate paperclip. Empty document collection concept. No people.",
+    "bytes": 31586,
+    "sha256": "a53737965d59e1bf006fe6665055e05a6f6f1b606529de861cc629b5f04825f8",
+    "generator": "built-in image_gen",
+    "format": "640x640 RGBA WebP"
+  }
+]

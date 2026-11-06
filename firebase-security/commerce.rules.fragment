@@ -1,0 +1,19 @@
+    // Rollout B: requires all legacy verification writers to be migrated first.
+    function validVerification(data) {
+      return data.keys().hasAll(['orderNumber','status','payment','createdAt','trackingId'])
+        && data.keys().hasOnly(['orderNumber','status','payment','createdAt','trackingId'])
+        && data.orderNumber is string && data.orderNumber.matches('^PW-[0-9]{4}-[0-9]{6}$')
+        && boundedText(data.status,1,40) && boundedText(data.payment,1,40)
+        && boundedText(data.createdAt,1,64) && boundedText(data.trackingId,0,100);
+    }
+    match /verifications/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if token.matches('^v_[0-9a-f]{32}$')
+        && validVerification(request.resource.data)
+        && (isAdmin() || (request.resource.data.status == 'Pending'
+          && request.resource.data.payment == 'Unpaid'
+          && request.resource.data.trackingId == ''));
+      allow update: if isAdmin() && validVerification(request.resource.data);
+      allow delete: if isAdmin();
+    }
