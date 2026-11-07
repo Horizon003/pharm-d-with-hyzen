@@ -6,19 +6,24 @@ import '../core/theme/app_theme.dart';
 import '../core/theme/palettes.dart';
 import 'providers.dart';
 import 'router.dart';
+import '../features/study_progress/study_notifications.dart';
 import '../features/viewer/external_files.dart';
 
 class HyzenApp extends ConsumerWidget {
   const HyzenApp({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+    StudyNotificationScheduler.instance.bindOpenHandler((route) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => router.go(route));
+    });
     return MaterialApp.router(
       title: Brand.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(ref.watch(paletteColorProvider)),
       darkTheme: AppTheme.dark(ref.watch(paletteColorProvider)),
       themeMode: ref.watch(themeModeProvider),
-      routerConfig: ref.watch(routerProvider),
+      routerConfig: router,
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(
           textScaler: _AppTextScaler(

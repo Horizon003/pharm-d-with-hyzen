@@ -9,10 +9,9 @@ import '../../../core/utils/links.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/main_dock.dart';
 import '../../../core/widgets/surfaces.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../downloads/domain/download_record.dart';
 import 'home_background.dart';
-import '../../study_progress/study_progress_screen.dart';
+import 'home_dashboard_top.dart';
 import '../../../core/widgets/ui_kit.dart';
 import '../../../core/widgets/profile_avatar.dart';
 import '../../notifications/notifications_screen.dart';
@@ -79,12 +78,12 @@ class HomeScreen extends ConsumerWidget {
       children: children,
     );
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: TabPage(
         title: 'PHARM D',
         integratedHeader: true,
-        headerTheme: AppTheme.dark(),
-        header: ColoredBox(color: Colors.black, child: SafeArea(
+        headerTheme: Theme.of(context),
+        header: ColoredBox(color: dark ? Colors.black : const Color(0xFFE8F1FB), child: SafeArea(
           bottom: false,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -118,7 +117,26 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 10),
+                Expanded(child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (scale <= 1.3) Text(homeGreeting(ref.watch(homeClockProvider)()).toUpperCase(),
+                      key: const ValueKey('home-greeting'),
+                      style: TextStyle(
+                        fontSize: 10, letterSpacing: .7,
+                        fontWeight: FontWeight.w700,
+                        color: dark ? Colors.white70 : const Color(0xFF436187))),
+                    Tooltip(message: name, child: Text(
+                      fresh ? 'Welcome, $name' : 'Welcome back, $name',
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w900,
+                        color: dark ? Colors.white : const Color(0xFF0C1933)),
+                    )),
+                  ],
+                )),
                 const NotificationBell(),
               ],
             ),
@@ -134,95 +152,7 @@ class HomeScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Column(
               children: [
-                SizedBox(
-                  height: scale > 1.5 ? 370 * scale.clamp(1, 2) : 230,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Image.asset(
-                          'assets/home/mountain_panda.webp',
-                          key: const ValueKey('home-hero-art'),
-                          fit: scale > 1.5 ? BoxFit.fitWidth : BoxFit.cover,
-                          alignment: Alignment.bottomCenter,
-                          semanticLabel:
-                              'Hyzen panda reading above mountains and clouds',
-                        ),
-                      ),
-                      Positioned(
-                        left: 0, right: 0, bottom: 0, height: 32,
-                        child: IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, dark ? const Color(0xFF101012) : const Color(0xFFF1F1F3)],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 32,
-                        left: 16,
-                        right: scale > 1.5 ? 16 : 110,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              homeGreeting(
-                                ref.watch(homeClockProvider)(),
-                              ).toUpperCase(),
-                              key: const ValueKey('home-greeting'),
-                              style: const TextStyle(
-                                color: Color(0xFFE3E3E5),
-                                fontSize: 11,
-                                letterSpacing: 1.2,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const Gap(8),
-                            Tooltip(
-                              message: name,
-                              child: Text(
-                                fresh
-                                    ? 'Welcome, $name'
-                                    : 'Welcome back, $name',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 21,
-                                  height: 1.15,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                            const Gap(14),
-                            FilledButton.icon(
-                              onPressed: () => context.go('/study'),
-                              icon: const Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 20,
-                              ),
-                              label: const Text('Continue to Study'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
-                                minimumSize: const Size(48, 48),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                shape: const StadiumBorder(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                HomeDashboardTop(year: profile?.professionalYear),
                 HomeAtmosphere(
                   content: true,
                   child: Padding(
@@ -283,8 +213,6 @@ class HomeScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        const HomeStudyTracker(),
-                        const Gap(18),
                         if (ann != null)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 24),
@@ -332,6 +260,14 @@ class HomeScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
+                        Row(children: [
+                          Expanded(child: Text('Quick Access', maxLines: 1,
+                            overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontSize: 18, fontWeight: FontWeight.w800))),
+                          TextButton(onPressed: () => context.go('/study'),
+                            child: const Text('See All')),
+                        ]),
+                        const Gap(10),
                         grid([
                           _ReferenceCard(
                             title: 'Study Library',
@@ -349,56 +285,31 @@ class HomeScreen extends ConsumerWidget {
                             onTap: () => context.go('/pdf-studio'),
                           ),
                         ], 132),
-                        const Gap(20),
-                        Row(
-                          children: [
-                            Text(
-                              'Others',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Divider(
-                                color: dark
-                                    ? const Color(0xFF55555A)
-                                    : const Color(0xFFD0D0D4),
-                              ),
-                            ),
-                          ],
-                        ),
                         const Gap(14),
-                        grid([
-                          settings.sectionEnabled('shop')
-                              ? _ReferenceCard(
-                                  title: 'Shop',
-                                  subtitle: settings.shopComingSoon
-                                      ? 'Coming soon'
-                                      : 'Study essentials',
-                                  icon: Icons.storefront_outlined,
-                                  art: 'shop',
-                                  onTap: () => context.go('/shop'),
-                                )
-                              : _ReferenceCard(
-                                  title: 'Search',
-                                  subtitle: 'Find your next topic',
-                                  icon: Icons.search,
-                                  art: 'books',
-                                  onTap: () =>
-                                      context.go('/search', extra: true),
-                                ),
-                          _ReferenceCard(
-                            title: 'Downloads',
-                            subtitle: 'Read anywhere, offline',
+                        Text('Others', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                        const Gap(8),
+                        Row(children: [
+                          Expanded(child: _CompactHomeLink(
+                            label: settings.sectionEnabled('shop') ? 'Shop' : 'Search',
+                            icon: settings.sectionEnabled('shop')
+                                ? Icons.storefront_outlined : Icons.search,
+                            onTap: () => settings.sectionEnabled('shop')
+                                ? context.go('/shop') : context.go('/search', extra: true))),
+                          const SizedBox(width: 8),
+                          Expanded(child: _CompactHomeLink(label: 'Downloads',
                             icon: Icons.file_download_outlined,
-                            art: 'downloads',
                             badges: badges,
-                            onTap: () => context.go('/downloads'),
-                          ),
-                        ], badges.isEmpty ? 116 : 124),
+                            onTap: () => context.go('/downloads'))),
+                          const SizedBox(width: 8),
+                          Expanded(child: _CompactHomeLink(label: 'Study Plan',
+                            icon: Icons.calendar_month_outlined,
+                            onTap: () => context.push('/study-goals'))),
+                          const SizedBox(width: 8),
+                          Expanded(child: _CompactHomeLink(label: 'My Progress',
+                            icon: Icons.bar_chart_rounded,
+                            onTap: () => context.push('/study-progress'))),
+                        ]),
+                        const Gap(20),
                         if (recent.isNotEmpty) ...[
                           const Gap(24),
                           SectionHeader(
@@ -446,19 +357,17 @@ class _ReferenceCard extends StatelessWidget {
     required this.art,
     required this.onTap,
     this.black = false,
-    this.badges = const [],
   });
   final String title, subtitle, art;
   final IconData icon;
   final VoidCallback onTap;
   final bool black;
-  final List<String> badges;
   @override
   Widget build(BuildContext context) {
     final ink = black ? Colors.white : Colors.black;
     return Semantics(
       button: true,
-      label: [title, ...badges].join(', '),
+      label: title,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
@@ -515,32 +424,13 @@ class _ReferenceCard extends StatelessWidget {
                         ),
                       ),
                       const Gap(9),
-                      if (badges.isEmpty) Padding(
+                      Padding(
                         padding: const EdgeInsets.only(right: 35),
-                        child: Text(
-                          subtitle,
-                          maxLines: 2,
+                        child: Text(subtitle, maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: ink.withValues(alpha: .72),
-                            fontSize: 11,
-                          ),
-                        ),
+                          style: TextStyle(color: ink.withValues(alpha: .72),
+                            fontSize: 11)),
                       ),
-                      if (badges.isNotEmpty) ...[
-                        const Gap(6),
-                        Wrap(
-                          spacing: 4,
-                          runSpacing: 3,
-                          children: [
-                            for (final badge in badges)
-                              DecoratedBox(
-                                decoration: BoxDecoration(color: const Color(0xFFE9E9EB), borderRadius: BorderRadius.circular(6)),
-                                child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2), child: Text(badge, style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w700))),
-                              ),
-                          ],
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -549,6 +439,39 @@ class _ReferenceCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CompactHomeLink extends StatelessWidget {
+  const _CompactHomeLink({required this.label, required this.icon,
+    required this.onTap, this.badges = const []});
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final List<String> badges;
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: dark ? const Color(0xFF212123) : const Color(0xFFF9FBFF),
+      elevation: dark ? 0 : 2,
+      borderRadius: BorderRadius.circular(17),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(onTap: onTap, child: SizedBox(
+        height: (94 * MediaQuery.textScalerOf(context).scale(1)).clamp(94.0, 180.0),
+        child: Padding(padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 25, color: dark ? Colors.white : const Color(0xFF174E8B)),
+            const SizedBox(height: 6),
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center, style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700)),
+            for (final badge in badges) Text(badge, maxLines: 1,
+              overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700)),
+          ])),
+      )),
     );
   }
 }
