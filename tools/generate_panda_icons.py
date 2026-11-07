@@ -18,15 +18,18 @@ for density, scale in [('mdpi', 1), ('hdpi', 1.5), ('xhdpi', 2),
     folder.mkdir(parents=True, exist_ok=True)
     legacy = image.resize((round(48 * scale),) * 2, resample)
     legacy.save(folder / 'ic_launcher.png', optimize=True)
-    # Fit the full supplied square inside a round legacy launcher mask.
+    # Keep the supplied square artwork at full legacy-icon size so the logo
+    # does not appear undersized when Android applies the round mask.
     circle = Image.new('RGBA', legacy.size, (255, 255, 255, 0))
     ImageDraw.Draw(circle).ellipse((0, 0, legacy.width-1, legacy.height-1), fill='white')
-    round_art = image.resize((round(legacy.width * .70),) * 2, resample)
+    round_art = image.resize(legacy.size, resample)
     circle.paste(round_art, ((legacy.width-round_art.width)//2, (legacy.height-round_art.height)//2))
     circle.save(folder / 'ic_launcher_round.png', optimize=True)
     side = round(108 * scale)
     foreground = Image.new('RGBA', (side, side), (255, 255, 255, 0))
-    artwork = image.resize((round(46 * scale),) * 2, resample)
+    # 64dp gives the adaptive foreground a readable size while keeping the
+    # cap and ears inside Android's launcher safe zone in normal masks.
+    artwork = image.resize((round(64 * scale),) * 2, resample)
     foreground.paste(artwork, ((side-artwork.width)//2, (side-artwork.height)//2))
     foreground.save(folder / 'ic_launcher_foreground.png', optimize=True)
 for name, size in [('hyzen_icon_square.png', 512)]:
