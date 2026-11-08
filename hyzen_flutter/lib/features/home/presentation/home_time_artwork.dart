@@ -8,11 +8,11 @@ import 'home_screen.dart' show homeClockProvider;
 /// from the selected light/dark app appearance.
 enum HomeTimePhase {
   earlyMorning('Early Morning', 'Good Morning', 'early_morning.webp'),
-  lateMorning('Late Morning', 'Good Day', 'late_morning.webp'),
+  morning('Morning', 'Good Day', 'late_morning.webp'),
   afternoon('Afternoon', 'Good Afternoon', 'afternoon.webp'),
-  lateAfternoon('Late Afternoon', 'Good Afternoon', 'late_afternoon.webp'),
-  evening('Evening', 'Good Evening', 'evening.webp'),
-  night('Night', 'Good Night', 'night.webp');
+  evening('Evening', 'Good Evening', 'late_afternoon.webp'),
+  night('Night', 'Good Night', 'evening.webp'),
+  lateNight('Late Night', 'Good Night', 'night.webp');
 
   const HomeTimePhase(this.label, this.greeting, this.file);
   final String label;
@@ -24,11 +24,11 @@ enum HomeTimePhase {
   static HomeTimePhase at(DateTime local) {
     final hour = local.hour;
     if (hour >= 5 && hour < 8) return HomeTimePhase.earlyMorning;
-    if (hour >= 8 && hour < 11) return HomeTimePhase.lateMorning;
-    if (hour >= 11 && hour < 14) return HomeTimePhase.afternoon;
-    if (hour >= 14 && hour < 17) return HomeTimePhase.lateAfternoon;
-    if (hour >= 17 && hour < 20) return HomeTimePhase.evening;
-    return HomeTimePhase.night;
+    if (hour >= 8 && hour < 12) return HomeTimePhase.morning;
+    if (hour >= 12 && hour < 16) return HomeTimePhase.afternoon;
+    if (hour >= 16 && hour < 19) return HomeTimePhase.evening;
+    if (hour >= 19 && hour < 23) return HomeTimePhase.night;
+    return HomeTimePhase.lateNight;
   }
 }
 
