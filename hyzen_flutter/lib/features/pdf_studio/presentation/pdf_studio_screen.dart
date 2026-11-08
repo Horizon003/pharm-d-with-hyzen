@@ -10,6 +10,7 @@ import '../../downloads/domain/download_record.dart';
 import '../../viewer/external_files.dart';
 import '../../viewer/offline_pdf.dart';
 import '../../viewer/reader_chrome.dart';
+import '../../study_progress/study_tracker.dart';
 import '../data/pdf_studio_repository.dart';
 import '../data/studio_file_item.dart';
 import 'studio_tools_screen.dart';
@@ -507,6 +508,7 @@ class _PdfStudioFileViewerScreenState
       _recorded = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
+          ref.read(studyTrackerProvider).start();
           ref.read(pdfStudioHistoryProvider.notifier).recordOpen(active.id);
         }
       });

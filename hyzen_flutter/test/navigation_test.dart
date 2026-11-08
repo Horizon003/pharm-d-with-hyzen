@@ -1,4 +1,8 @@
 import 'dart:io';
+import 'package:hyzen_pharmd/features/notifications/notifications_screen.dart';
+import 'package:hyzen_pharmd/features/study_progress/study_forms.dart';
+import 'package:hyzen_pharmd/features/study_progress/study_tracker.dart';
+import 'package:hyzen_pharmd/features/home/presentation/home_time_artwork.dart';
 import 'package:hyzen_pharmd/features/home/presentation/home_screen.dart';
 import 'package:hyzen_pharmd/features/home/presentation/home_background.dart';
 import 'package:hyzen_pharmd/features/home/data/recent_controller.dart';
@@ -51,6 +55,7 @@ void main() {
   late SharedPreferences prefs;
   late ProviderContainer container;
   late List<Map<String, dynamic>> fixtureTree;
+  var qaClock = DateTime(2026, 1, 1, 18);
   setUpAll(() async {
     final fonts = FontLoader('Manrope');
     for (final weight in [400, 500, 600, 700, 800]) {
@@ -62,6 +67,7 @@ void main() {
     await icons.load();
   });
   setUp(() async {
+    qaClock = DateTime(2026, 1, 1, 18);
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
     temp = await Directory.systemTemp.createTemp('hyzen-widget-test-');
@@ -90,7 +96,7 @@ void main() {
     fixtureTree = tree;
     container = ProviderContainer(
       overrides: [
-        homeClockProvider.overrideWithValue(() => DateTime(2026, 1, 1, 18)),
+        homeClockProvider.overrideWithValue(() => qaClock),
         sharedPrefsProvider.overrideWithValue(prefs),
         authStateProvider.overrideWith((ref) => Stream.value(StudentUser())),
         profileProvider.overrideWith(
@@ -152,12 +158,50 @@ void main() {
       ]),
     );
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const HyzenApp()),
+      UncontrolledProviderScope(
+        container: container,
+        child: const RepaintBoundary(
+          key: ValueKey('qa-app'),
+          child: HyzenApp(),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     container.read(routerProvider).go(path);
     await tester.pumpAndSettle();
   }
+
+  testWidgets('push inbox deduplicates receipt and preserves read status', (
+    tester,
+  ) async {
+    await open(tester, '/home');
+    final inbox = container.read(notificationsProvider.notifier);
+    const message = {
+      'id': 'push_same-provider-id',
+      'title': 'New material',
+      'body': 'Notes ready',
+      'url': '/study',
+    };
+    inbox.receivePush(message);
+    inbox.receivePush(message);
+    expect(
+      container
+          .read(notificationsProvider)
+          .where((m) => m['id'] == message['id'])
+          .length,
+      1,
+    );
+    inbox.receivePush({...message, 'opened': true});
+    inbox.receivePush(message);
+    expect(
+      container
+          .read(notificationsProvider)
+          .singleWhere((m) => m['id'] == message['id'])['read'],
+      isTrue,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 
   test('HOME-03 time greeting boundaries', () {
     expect(homeGreeting(DateTime(2026, 1, 1, 6)), 'Good morning');
@@ -553,7 +597,12 @@ void main() {
       expect(rect.height, greaterThanOrEqualTo(48));
       previous = rect.left;
     }
-    expect(tester.widget<Material>(dock).color, Colors.black);
+    expect(
+      tester.widget<Material>(dock).color,
+      Theme.of(tester.element(dock)).brightness == Brightness.dark
+          ? Colors.black
+          : Colors.white,
+    );
   });
 
   testWidgets(
@@ -744,19 +793,22 @@ void main() {
       DockDestination selected = DockDestination.home;
       for (final reduce in [false, true]) {
         await tester.pumpWidget(
-          MaterialApp(
-            home: MediaQuery(
-              data: MediaQueryData(
-                size: const Size(320, 900),
-                textScaler: TextScaler.linear(2),
-                padding: const EdgeInsets.only(bottom: 24),
-                disableAnimations: reduce,
-              ),
-              child: StatefulBuilder(
-                builder: (context, setState) => Scaffold(
-                  bottomNavigationBar: MainDock(
-                    path: selected.route,
-                    onSelected: (value) => setState(() => selected = value),
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: MediaQuery(
+                data: MediaQueryData(
+                  size: const Size(320, 900),
+                  textScaler: TextScaler.linear(2),
+                  padding: const EdgeInsets.only(bottom: 24),
+                  disableAnimations: reduce,
+                ),
+                child: StatefulBuilder(
+                  builder: (context, setState) => Scaffold(
+                    bottomNavigationBar: MainDock(
+                      path: selected.route,
+                      onSelected: (value) => setState(() => selected = value),
+                    ),
                   ),
                 ),
               ),
@@ -1259,7 +1311,13 @@ void main() {
     tester.platformDispatcher.textScaleFactorTestValue = 1.4;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const HyzenApp()),
+      UncontrolledProviderScope(
+        container: container,
+        child: const RepaintBoundary(
+          key: ValueKey('qa-app'),
+          child: HyzenApp(),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     container.read(routerProvider).go('/home');
@@ -1397,4 +1455,130 @@ void main() {
       }
     });
   }
+  testWidgets('original reference responsive matrix', (tester) async {
+    final errorHandler = FlutterError.onError;
+    FlutterError.onError = (details) {
+      debugPrint(details.toString());
+      errorHandler?.call(details);
+    };
+    addTearDown(() => FlutterError.onError = errorHandler);
+    tester.view.devicePixelRatio = 1;
+    debugDisableShadows = false;
+    addTearDown(() => debugDisableShadows = true);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    for (final width in [320.0, 360.0, 390.0]) {
+      for (final scale in [1.0, 2.0]) {
+        tester.view.physicalSize = Size(width, 844);
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+          container.read(themeModeProvider.notifier).set(mode);
+          for (final path in [
+            '/home',
+            '/study-goals',
+            '/study-streak',
+            '/campus-rank',
+          ]) {
+            await open(tester, path);
+            final scrollable = tester.state<ScrollableState>(
+              find.byType(Scrollable).first,
+            );
+            scrollable.position.jumpTo(scrollable.position.minScrollExtent);
+            await tester.pumpAndSettle();
+            if (path == '/home') {
+              final button = tester.getRect(
+                find.byKey(const ValueKey('home-continue-study')),
+              );
+              final badge = tester.getRect(
+                find.byKey(const ValueKey('home-professional-badge')),
+              );
+              expect(
+                button.bottom,
+                lessThan(badge.top),
+                reason: 'Home actions must not overlap at $width / $scale',
+              );
+            }
+            if (const bool.fromEnvironment('HYZEN_CAPTURE_QA')) {
+              await tester.runAsync(() async {
+                final context = tester.element(find.byType(HyzenApp));
+                for (final phase in HomeTimePhase.values) {
+                  await precacheImage(AssetImage(phase.asset), context);
+                }
+              });
+              await tester.pumpAndSettle();
+              await expectLater(
+                find.byKey(const ValueKey('qa-app')),
+                matchesGoldenFile(
+                  '../qa/pr9/${path.substring(1)}-${mode.name}-${width.toInt()}-${scale.toInt()}.png',
+                ),
+              );
+            }
+            expect(
+              tester.takeException(),
+              isNull,
+              reason: '$path at $width text $scale ${mode.name}',
+            );
+            for (var scroll = 0; scroll < 10; scroll++) {
+              await tester.drag(
+                find.byType(Scrollable).first,
+                const Offset(0, -600),
+              );
+              await tester.pumpAndSettle();
+              expect(
+                tester.takeException(),
+                isNull,
+                reason:
+                    '$path scroll $scroll at $width text $scale ${mode.name}',
+              );
+            }
+          }
+        }
+      }
+    }
+    if (const bool.fromEnvironment('HYZEN_CAPTURE_QA')) {
+      tester.view.physicalSize = const Size(360, 844);
+      tester.platformDispatcher.textScaleFactorTestValue = 1;
+      for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+        container.read(themeModeProvider.notifier).set(mode);
+        for (final hour in [6, 9, 12, 15, 18, 22]) {
+          qaClock = DateTime(2026, 1, 1, hour);
+          await open(tester, '/home');
+          container.read(homePhaseClockProvider).refresh();
+          tester
+              .state<ScrollableState>(find.byType(Scrollable).first)
+              .position
+              .jumpTo(0);
+          await tester.pumpAndSettle();
+          await expectLater(
+            find.byKey(const ValueKey('qa-app')),
+            matchesGoldenFile('../qa/pr9/home-phase-$hour-${mode.name}.png'),
+          );
+          expect(tester.takeException(), isNull);
+        }
+        for (final reminder in [false, true]) {
+          await open(tester, '/study-goals');
+          final context = tester.element(find.byType(Scaffold).last);
+          showStudyForm(
+            context,
+            container.read(studyTrackerProvider),
+            reminder: reminder,
+          );
+          await tester.pumpAndSettle();
+          await expectLater(
+            find.byKey(const ValueKey('qa-app')),
+            matchesGoldenFile(
+              '../qa/pr9/form-${reminder ? 'reminder' : 'task'}-${mode.name}.png',
+            ),
+          );
+          Navigator.pop(tester.element(find.byType(TextFormField).first));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        }
+      }
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    debugDisableShadows = true;
+  });
 }

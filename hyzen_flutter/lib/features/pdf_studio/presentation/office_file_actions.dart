@@ -388,7 +388,7 @@ Future<void> showOfficeFileMore(
         ),
         OfficeSheetItem(
           icon: Icons.cloud_upload_rounded,
-          label: 'Copy to…',
+          label: 'Share',
           onTap: () => Navigator.pop(sheet, 'share'),
         ),
         const OfficeSheetDivider(),

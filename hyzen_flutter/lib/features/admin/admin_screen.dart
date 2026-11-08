@@ -117,6 +117,11 @@ class _AdminState extends ConsumerState<AdminScreen> {
                 selected: true,
                 onTap: () => Navigator.of(context).pop(),
               ),
+              ListTile(
+                leading: const Icon(Icons.campaign_outlined),
+                title: const Text('Push Notification Center'),
+                onTap: () => context.push('/admin/push'),
+              ),
               for (final group in adminGroups.entries) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
@@ -176,68 +181,176 @@ class _AdminState extends ConsumerState<AdminScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(24),
-                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: .45)),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const StatusPill(label: 'Secure admin', icon: Icons.verified_user_rounded, color: HColors.success),
-                  const Gap(12),
-                  Text('Admin dashboard', style: Theme.of(context).textTheme.headlineSmall),
-                  const Gap(6), const Text('Content, orders and your platform'),
-                  const Gap(18),
-                  Row(children: [
-                    Expanded(child: _AdminMetric('${orders.length}', 'Orders', Icons.shopping_bag_outlined)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _AdminMetric('${messages.where((m) => m['read'] != true).length}', 'Unread messages', Icons.forum_outlined)),
-                  ]),
-                ]),
-              ),
-              const Gap(20),
-              Row(children: [
-                Expanded(child: Text('Quick actions', style: Theme.of(context).textTheme.titleLarge)),
-                IconButton(tooltip: 'Refresh inbox', onPressed: busy ? null : sync, icon: const Icon(Icons.sync_rounded)),
-              ]),
-              const Gap(10),
-              LayoutBuilder(builder: (context, box) => GridView(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true, primary: false, physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: box.maxWidth < 320 || MediaQuery.textScalerOf(context).scale(1) > 1.5 ? 1 : box.maxWidth >= 800 ? 3 : 2,
-                  mainAxisExtent: 116 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 1.7),
-                  mainAxisSpacing: 10, crossAxisSpacing: 10),
-                children: [for (final action in <(String, IconData, String)>[
-                  ('Manage content', Icons.description_outlined, 'content/notes'),
-                  ('Import content', Icons.cloud_upload_outlined, 'import'),
-                  ('Section visibility', Icons.visibility_outlined, 'sections'),
-                  ('Products & shop', Icons.shopping_bag_outlined, 'manage/products'),
-                  ('Announcements', Icons.campaign_outlined, 'manage/announcement'),
-                  ('Theme settings', Icons.palette_outlined, 'manage/theme'),
-                ]) InkWell(
-                  onTap: () => context.push('/admin/${action.$3}'),
-                  borderRadius: BorderRadius.circular(18),
-                  child: Container(padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(18), border: Border.all(color: Theme.of(context).colorScheme.outlineVariant)),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(action.$2, color: Theme.of(context).colorScheme.primary, size: 26),
-                      const Gap(12), Text(action.$1, style: Theme.of(context).textTheme.titleSmall),
-                    ]))),
-                ],
-              )),
-              const Gap(22),
-              Text('All controls', style: Theme.of(context).textTheme.titleLarge),
-              const Gap(10),
-              for (final group in adminGroups.entries) Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ExpansionTile(
-                  shape: const Border(), collapsedShape: const Border(),
-                  title: Text(group.key), leading: Icon(group.value.first.$2),
-                  children: [for (final item in group.value) ListTile(
-                    title: Text(item.$1), leading: Icon(item.$2, size: 21),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => context.push('/admin/${item.$3}'),
-                  )],
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withValues(alpha: .45),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const StatusPill(
+                      label: 'Secure admin',
+                      icon: Icons.verified_user_rounded,
+                      color: HColors.success,
+                    ),
+                    const Gap(12),
+                    Text(
+                      'Admin dashboard',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const Gap(6),
+                    const Text('Content, orders and your platform'),
+                    const Gap(18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _AdminMetric(
+                            '${orders.length}',
+                            'Orders',
+                            Icons.shopping_bag_outlined,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _AdminMetric(
+                            '${messages.where((m) => m['read'] != true).length}',
+                            'Unread messages',
+                            Icons.forum_outlined,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
+              const Gap(20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Quick actions',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Refresh inbox',
+                    onPressed: busy ? null : sync,
+                    icon: const Icon(Icons.sync_rounded),
+                  ),
+                ],
+              ),
+              const Gap(10),
+              LayoutBuilder(
+                builder: (context, box) => GridView(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  primary: false,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount:
+                        box.maxWidth < 320 ||
+                            MediaQuery.textScalerOf(context).scale(1) > 1.5
+                        ? 1
+                        : box.maxWidth >= 800
+                        ? 3
+                        : 2,
+                    mainAxisExtent:
+                        116 *
+                        MediaQuery.textScalerOf(context).scale(1).clamp(1, 1.7),
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                  ),
+                  children: [
+                    for (final action in <(String, IconData, String)>[
+                      (
+                        'Manage content',
+                        Icons.description_outlined,
+                        'content/notes',
+                      ),
+                      ('Import content', Icons.cloud_upload_outlined, 'import'),
+                      (
+                        'Section visibility',
+                        Icons.visibility_outlined,
+                        'sections',
+                      ),
+                      (
+                        'Products & shop',
+                        Icons.shopping_bag_outlined,
+                        'manage/products',
+                      ),
+                      (
+                        'Announcements',
+                        Icons.campaign_outlined,
+                        'manage/announcement',
+                      ),
+                      (
+                        'Theme settings',
+                        Icons.palette_outlined,
+                        'manage/theme',
+                      ),
+                    ])
+                      InkWell(
+                        onTap: () => context.push('/admin/${action.$3}'),
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                action.$2,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 26,
+                              ),
+                              const Gap(12),
+                              Text(
+                                action.$1,
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Gap(22),
+              Text(
+                'All controls',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const Gap(10),
+              for (final group in adminGroups.entries)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ExpansionTile(
+                    shape: const Border(),
+                    collapsedShape: const Border(),
+                    title: Text(group.key),
+                    leading: Icon(group.value.first.$2),
+                    children: [
+                      for (final item in group.value)
+                        ListTile(
+                          title: Text(item.$1),
+                          leading: Icon(item.$2, size: 21),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => context.push('/admin/${item.$3}'),
+                        ),
+                    ],
+                  ),
+                ),
               const Gap(16),
               HButton(
                 label: 'Log out',
@@ -261,11 +374,18 @@ class _AdminMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(16)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-      const Gap(8), Text(value, style: Theme.of(context).textTheme.headlineSmall),
-      Text(label, style: Theme.of(context).textTheme.bodySmall),
-    ]),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        const Gap(8),
+        Text(value, style: Theme.of(context).textTheme.headlineSmall),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    ),
   );
 }

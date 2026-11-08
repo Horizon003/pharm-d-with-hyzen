@@ -19,6 +19,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -36,10 +37,15 @@ android {
 
     // Private development signing, retained for continuity between test updates.
     signingConfigs.getByName("debug") {
-        storeFile = file("../test-signing/hyzen-test.keystore")
-        storePassword = "android"
-        keyAlias = "AndroidDebugKey"
-        keyPassword = "android"
+        val privateTestKey = file("../test-signing/hyzen-test.keystore")
+        if (privateTestKey.exists()) {
+            storeFile = privateTestKey
+            storePassword = "android"
+            keyAlias = "AndroidDebugKey"
+            keyPassword = "android"
+        }
+        // Fresh CI uses AGP's standard debug key. This APK is a test artifact;
+        // production releases still require the owner's key.properties above.
     }
     signingConfigs.create("production") {
         if (releasePropertiesFile.exists()) {
@@ -71,6 +77,7 @@ flutter {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
     implementation("androidx.camera:camera-core:1.4.2")
     implementation("androidx.camera:camera-camera2:1.4.2")

@@ -1,0 +1,30 @@
+// Merge these match blocks into the existing deployed rules; do not replace
+// production rules using this standalone emulator policy.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function hyzenAdmin() {
+      return request.auth != null &&
+        request.auth.uid == 'Vv6HtZjmUvfVACzvuyL2pFx5HR33';
+    }
+    match /studyUsers/{uid}/{document=**} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+    match /campusMemberships/{uid} {
+      allow get: if hyzenAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow list: if hyzenAdmin();
+      allow create, update: if hyzenAdmin()
+        && request.resource.data.verified is bool
+        && request.resource.data.academicYear is int
+        && request.resource.data.academicYear >= 1
+        && request.resource.data.academicYear <= 5;
+      allow delete: if hyzenAdmin();
+    }
+    // Legacy Firestore boards stay private. The free Worker returns D1 boards
+    // through authenticated readCampusBoard with verified membership/consent.
+    match /campusLeaderboards/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -78,7 +78,8 @@ void main() {
       expect(find.text('Page 1 of 2'), findsOneWidget);
       expect(find.text('Crop'), findsOneWidget);
       expect(find.text('Rotate'), findsOneWidget);
-      expect(find.text('Keep scanning'), findsOneWidget);
+      expect(find.byKey(const ValueKey('scan-more')), findsOneWidget);
+      expect(find.text('Keep scanning'), findsNothing);
       expect(tester.takeException(), isNull);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),
@@ -96,9 +97,7 @@ void main() {
       expect(find.text('Add your first page'), findsOneWidget);
       expect(
         tester
-            .widget<FilledButton>(
-              find.byWidgetPredicate((w) => w is FilledButton),
-            )
+            .widget<TextButton>(find.byKey(const ValueKey('save-scan-pdf')))
             .onPressed,
         isNull,
       );
@@ -171,7 +170,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('scan-more')));
       await tester.pumpAndSettle();
       expect(find.text('Choose gallery images instead.'), findsOneWidget);
-      expect(find.byTooltip('Choose gallery images'), findsOneWidget);
+      expect(find.text('Add Images'), findsOneWidget);
       expect(find.text('Auto detect'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -239,7 +238,7 @@ void main() {
       );
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Save PDF'));
+      await tester.tap(find.byKey(const ValueKey('save-scan-pdf')));
       await tester.pumpAndSettle();
       expect(find.text('File name'), findsOneWidget);
       await tester.tap(find.text('Save'));
@@ -292,7 +291,7 @@ void main() {
         const ProviderScope(child: MaterialApp(home: ScanPdfScreen())),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Save PDF'));
+      await tester.tap(find.byKey(const ValueKey('save-scan-pdf')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();

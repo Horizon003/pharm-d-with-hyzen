@@ -9,6 +9,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PUSH_API_BASE: ${{ vars.HYZEN_PUSH_API_BASE }}
     steps:
       - uses: actions/checkout@v4
       - name: Free runner disk space
@@ -53,7 +55,9 @@ jobs:
         working-directory: hyzen_flutter
       - run: flutter test --no-pub --reporter expanded
         working-directory: hyzen_flutter
-      - run: flutter build apk --release --no-pub --no-shrink
+      - name: Require the configured production backend URL
+        run: test -n "$PUSH_API_BASE"
+      - run: flutter build apk --release --no-pub --no-shrink --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
         working-directory: hyzen_flutter
       - name: Identify artifact
         run: sha256sum hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk > hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk.sha256

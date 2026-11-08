@@ -1,3 +1,4 @@
+import '../../../core/widgets/navigation_preferences.dart';
 import 'dart:async';
 import 'profile_promotions.dart';
 import '../../academics/data/drive_gateway.dart';
@@ -480,7 +481,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             : () async {
                                 setState(() => _photoBusy = true);
                                 try {
-                                  final url = await MediaUpload.pickAndUpload();
+                                  final url = await MediaUpload.pickAndUpload(
+                                    context: context,
+                                  );
                                   if (url != null && mounted) {
                                     setState(() => _photo = url);
                                   }
@@ -844,33 +847,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () => showModalBottomSheet<void>(
                   context: context,
                   showDragHandle: true,
-                  builder: (sheet) => SafeArea(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const ListTile(
-                          title: Text('Text size'),
-                          subtitle: Text(
-                            '13 is the default. Device accessibility settings still apply.',
-                          ),
-                        ),
-                        for (final size in TextSizeNotifier.sizes)
-                          ListTile(
-                            title: Text(
-                              '$size',
-                              style: TextStyle(fontSize: size.toDouble()),
-                            ),
-                            trailing: size == ref.read(textSizeProvider)
-                                ? const Icon(Icons.check_rounded)
-                                : null,
-                            onTap: () {
-                              ref.read(textSizeProvider.notifier).set(size);
-                              Navigator.pop(sheet);
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
+                  isScrollControlled: true,
+                  builder: (_) => const AppearanceControls(),
                 ),
               ),
             ],

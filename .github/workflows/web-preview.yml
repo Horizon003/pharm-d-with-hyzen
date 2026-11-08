@@ -20,8 +20,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PUSH_API_BASE: ${{ vars.HYZEN_PUSH_API_BASE }}
     steps:
       - uses: actions/checkout@v4
+      - name: Require the configured production backend URL
+        run: python tools/ci/validate_push_url.py
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.4'
@@ -32,7 +36,7 @@ jobs:
       - name: Build browser preview
         run: |
           version=$(sed -n 's/^version: //p' pubspec.yaml)
-          flutter build web --release --no-pub --base-href "/pharm-d-with-hyzen/" --dart-define=HYZEN_APP_VERSION="$version"
+          flutter build web --release --no-pub --base-href "/pharm-d-with-hyzen/" --dart-define=HYZEN_APP_VERSION="$version" --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
         working-directory: hyzen_flutter
       - name: Add SPA fallback
         run: cp hyzen_flutter/build/web/index.html hyzen_flutter/build/web/404.html

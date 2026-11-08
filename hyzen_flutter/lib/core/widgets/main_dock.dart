@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/content/data/content_providers.dart';
 import '../theme/tokens.dart';
+import 'navigation_preferences.dart';
 
 /// Visible destinations map to the existing shell branches. Auxiliary branches
 /// keep their original indexes; they are intentionally absent from this list.
@@ -23,7 +24,7 @@ enum DockDestination {
 
 /// One opaque, five-destination dock. The shell owns navigation and restores
 /// each branch's existing stack; the current route alone determines selection.
-class MainDock extends StatelessWidget {
+class MainDock extends ConsumerWidget {
   const MainDock({super.key, required this.path, required this.onSelected});
   final String path;
   final ValueChanged<DockDestination> onSelected;
@@ -31,12 +32,19 @@ class MainDock extends StatelessWidget {
   static double height(BuildContext context) =>
       48.0 + math.max(22.0, MediaQuery.textScalerOf(context).scale(11) * 2.4);
   static double contentInset(BuildContext context) =>
-      height(context) +
+      height(context) * 1.25 +
       16 +
       math.max(10.0, MediaQuery.viewPaddingOf(context).bottom);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(dockThemeProvider);
+    final size = ref.watch(dockSizeProvider);
+    final dark =
+        mode == 'dark' ||
+        (mode == 'follow' && Theme.of(context).brightness == Brightness.dark);
+    final ink = dark ? Colors.white : Colors.black;
+
     if (MediaQuery.viewInsetsOf(context).bottom > 0) {
       return const SizedBox.shrink();
     }
@@ -49,16 +57,16 @@ class MainDock extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 640),
           child: Material(
             key: const ValueKey('main-dock'),
-            color: Colors.black,
+            color: dark ? Colors.black : Colors.white,
             elevation: 3,
             shadowColor: Colors.black26,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(HRadius.pill),
-              side: const BorderSide(color: Color(0xFF29292D)),
+              side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
             ),
             clipBehavior: Clip.antiAlias,
             child: SizedBox(
-              height: height(context),
+              height: height(context) * size,
               child: Padding(
                 padding: const EdgeInsets.all(6),
                 child: LayoutBuilder(
@@ -71,6 +79,8 @@ class MainDock extends StatelessWidget {
                         for (final destination in DockDestination.values)
                           _DockItem(
                             destination: destination,
+                            ink: ink,
+                            size: size,
                             compact: compact,
                             selected: destination.matches(path),
                             onTap: () => onSelected(destination),
@@ -91,11 +101,15 @@ class MainDock extends StatelessWidget {
 class _DockItem extends StatelessWidget {
   const _DockItem({
     required this.destination,
+    required this.ink,
+    required this.size,
     required this.selected,
     required this.compact,
     required this.onTap,
   });
   final DockDestination destination;
+  final Color ink;
+  final double size;
   final bool selected, compact;
   final VoidCallback onTap;
   @override
@@ -122,9 +136,7 @@ class _DockItem extends StatelessWidget {
                 curve: HMotion.curve,
                 decoration: BoxDecoration(
                   color: selected
-                      ? (office
-                            ? const Color(0xFF38383D)
-                            : const Color(0xFF29292D))
+                      ? ink.withValues(alpha: .12)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(HRadius.pill),
                 ),
@@ -146,8 +158,8 @@ class _DockItem extends StatelessWidget {
                           curve: HMotion.curve,
                           child: Icon(
                             destination.icon,
-                            color: Colors.white,
-                            size: 23,
+                            color: ink,
+                            size: 23 * size,
                           ),
                         ),
                       ),
@@ -163,9 +175,9 @@ class _DockItem extends StatelessWidget {
                             softWrap: false,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 10.5 * size,
                               height: 1.15,
-                              color: Colors.white,
+                              color: ink,
                               fontWeight: selected
                                   ? FontWeight.w800
                                   : FontWeight.w600,

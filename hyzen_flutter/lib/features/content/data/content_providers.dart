@@ -88,6 +88,19 @@ final lecturesProvider = Provider<AsyncValue<Loaded<List<LectureYear>>>>((ref) {
   );
 });
 
+final announcementSlidesProvider = Provider<List<Announcement>>((ref) {
+  final raw = asMap(
+    ref.watch(contentProvider('pw_announcement')).valueOrNull?.value,
+  );
+  if (raw['slides'] is List) {
+    return asMapList(
+      raw['slides'],
+    ).map(Announcement.new).where((slide) => slide.visible).toList();
+  }
+  final legacy = Announcement(raw);
+  return legacy.visible ? [legacy] : [];
+});
+
 final announcementProvider = Provider<Announcement?>((ref) {
   final v = ref.watch(contentProvider('pw_announcement')).valueOrNull?.value;
   final a = Announcement(asMap(v));

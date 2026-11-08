@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,11 +8,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/firebase/firebase_options.dart';
 import '../core/storage/local_store.dart';
 import 'app.dart';
+import '../features/study_progress/study_notifications.dart';
 import 'providers.dart';
+import '../features/notifications/push_service.dart';
 
 /// Initialise only what the first frame needs. No artificial delay.
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PushService.instance.initialize();
   // Firebase, preferences and Hive are independent: start them together so
   // cold start waits for the slowest one instead of the sum of all three.
   Future<bool> firebase() async {
@@ -31,6 +35,7 @@ Future<void> bootstrap() async {
     SharedPreferences.getInstance(),
     Boxes.init(),
   ]);
+  unawaited(StudyNotificationScheduler.instance.initialize());
   runApp(
     ProviderScope(
       overrides: [

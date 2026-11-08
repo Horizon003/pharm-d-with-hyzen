@@ -5,14 +5,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/theme/tokens.dart';
-import '../../../core/utils/links.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/main_dock.dart';
 import '../../../core/widgets/surfaces.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../downloads/domain/download_record.dart';
 import 'home_background.dart';
-import '../../study_progress/study_progress_screen.dart';
+import 'home_dashboard_top.dart';
+import 'home_time_artwork.dart';
+import 'announcement_carousel.dart';
 import '../../../core/widgets/ui_kit.dart';
 import '../../../core/widgets/profile_avatar.dart';
 import '../../notifications/notifications_screen.dart';
@@ -27,11 +27,10 @@ import '../../downloads/data/downloads_controller.dart';
 
 // The reference artwork is decorative; all controls below are live Flutter UI.
 final homeClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
-String homeGreeting(DateTime time) => time.hour < 12
-    ? 'Good morning'
-    : time.hour < 17
-    ? 'Good afternoon'
-    : 'Good evening';
+String homeGreeting(DateTime time) {
+  final greeting = HomeTimePhase.at(time).greeting;
+  return greeting[0] + greeting.substring(1).toLowerCase();
+}
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -42,8 +41,8 @@ class HomeScreen extends ConsumerWidget {
     final settings = ref.watch(siteSettingsProvider);
     final recent = ref.watch(recentProvider);
     final ann = ref.watch(boolPrefProvider('pref_announcements'))
-        ? ref.watch(announcementProvider)
-        : null;
+        ? ref.watch(announcementSlidesProvider)
+        : ref.watch(announcementSlidesProvider).take(0).toList();
     final name =
         profile?.firstName ?? user?.displayName?.split(' ').first ?? 'there';
     final fresh = ref.watch(lastCreatedProfileProvider)?.uid == user?.uid;
@@ -79,51 +78,95 @@ class HomeScreen extends ConsumerWidget {
       children: children,
     );
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: TabPage(
         title: 'PHARM D',
         integratedHeader: true,
-        headerTheme: AppTheme.dark(),
-        header: ColoredBox(color: Colors.black, child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Tooltip(
-                  message: 'Profile & settings',
-                  child: InkWell(
-                    onTap: () => showAccountMenu(context),
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
-                      ),
-                      child: ClipOval(
-                        child: profile?.photoUrl != null
-                            ? ProfileAvatar(
-                                photoUrl: profile!.photoUrl,
-                                radius: 20,
-                                fallback: name,
-                              )
-                            : Image.asset(
-                                'assets/brand/hyzen_icon_square.png',
-                                fit: BoxFit.cover,
-                              ),
+        headerTheme: Theme.of(context),
+        header: ColoredBox(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Tooltip(
+                    message: 'Profile & settings',
+                    child: InkWell(
+                      onTap: () => showAccountMenu(context),
+                      customBorder: const CircleBorder(),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: profile?.photoUrl != null
+                              ? ProfileAvatar(
+                                  photoUrl: profile!.photoUrl,
+                                  radius: 20,
+                                  fallback: name,
+                                )
+                              : Image.asset(
+                                  'assets/brand/hyzen_icon_square.png',
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const Spacer(),
-                const NotificationBell(),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (scale <= 1.3)
+                          Text(
+                            homeGreeting(
+                              ref.watch(homePhaseClockProvider).value,
+                            ).toUpperCase(),
+                            key: const ValueKey('home-greeting'),
+                            style: TextStyle(
+                              fontSize: 10,
+                              letterSpacing: .7,
+                              fontWeight: FontWeight.w700,
+                              color: dark
+                                  ? Colors.white70
+                                  : const Color(0xFF436187),
+                            ),
+                          ),
+                        Tooltip(
+                          message: name,
+                          child: Text(
+                            fresh ? 'Welcome, $name' : 'Welcome back, $name',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: dark
+                                  ? Colors.white
+                                  : const Color(0xFF0C1933),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const NotificationBell(),
+                ],
+              ),
             ),
           ),
-        )),
+        ),
         homeBackground: (child) => HomeAtmosphere(child: child),
         onRefresh: () => refreshContent(ref, [
           'pw_settings',
@@ -134,95 +177,7 @@ class HomeScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Column(
               children: [
-                SizedBox(
-                  height: scale > 1.5 ? 370 * scale.clamp(1, 2) : 230,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Image.asset(
-                          'assets/home/mountain_panda.webp',
-                          key: const ValueKey('home-hero-art'),
-                          fit: scale > 1.5 ? BoxFit.fitWidth : BoxFit.cover,
-                          alignment: Alignment.bottomCenter,
-                          semanticLabel:
-                              'Hyzen panda reading above mountains and clouds',
-                        ),
-                      ),
-                      Positioned(
-                        left: 0, right: 0, bottom: 0, height: 32,
-                        child: IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, dark ? const Color(0xFF101012) : const Color(0xFFF1F1F3)],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 32,
-                        left: 16,
-                        right: scale > 1.5 ? 16 : 110,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              homeGreeting(
-                                ref.watch(homeClockProvider)(),
-                              ).toUpperCase(),
-                              key: const ValueKey('home-greeting'),
-                              style: const TextStyle(
-                                color: Color(0xFFE3E3E5),
-                                fontSize: 11,
-                                letterSpacing: 1.2,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const Gap(8),
-                            Tooltip(
-                              message: name,
-                              child: Text(
-                                fresh
-                                    ? 'Welcome, $name'
-                                    : 'Welcome back, $name',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 21,
-                                  height: 1.15,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                            const Gap(14),
-                            FilledButton.icon(
-                              onPressed: () => context.go('/study'),
-                              icon: const Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 20,
-                              ),
-                              label: const Text('Continue to Study'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
-                                minimumSize: const Size(48, 48),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                shape: const StadiumBorder(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                HomeDashboardTop(year: profile?.professionalYear),
                 HomeAtmosphere(
                   content: true,
                   child: Padding(
@@ -249,32 +204,38 @@ class HomeScreen extends ConsumerWidget {
                               ],
                             ),
                             child: Material(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(32),
                               clipBehavior: Clip.antiAlias,
                               child: InkWell(
                                 onTap: () => context.go('/search', extra: true),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
-                                    vertical: 12,
+                                    vertical: 4,
                                   ),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.search, color: Colors.black),
-                                      SizedBox(width: 10),
+                                      Icon(
+                                        Icons.search,
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                      ),
+                                      const SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
                                           'Search subjects, topics or files',
                                           style: TextStyle(
-                                            color: Colors.black,
+                                            color: Theme.of(context).colorScheme.onSurface,
                                             fontSize: 13,
                                           ),
                                         ),
                                       ),
-                                      Icon(
-                                        Icons.arrow_forward,
-                                        color: Colors.black,
+                                      IconButton(tooltip: 'Scan a document',
+                                        onPressed: () => context.push('/create-pdf'),
+                                        icon: Icon(
+                                          Icons.document_scanner_outlined,
+                                          color: Theme.of(context).colorScheme.onSurface,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -283,62 +244,39 @@ class HomeScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        const HomeStudyTracker(),
-                        const Gap(18),
-                        if (ann != null)
+                        if (ann.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 24),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: dark
-                                    ? const Color(0xFF29292D)
-                                    : const Color(0xFFE3E3E5),
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.campaign_outlined,
-                                    color: dark ? Colors.white : Colors.black,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      ann.text,
-                                      style: TextStyle(
-                                        color: dark
-                                            ? Colors.white
-                                            : Colors.black,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: AnnouncementCarousel(slides: ann),
+                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Quick Access',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
                                     ),
-                                  ),
-                                  if (ann.linkUrl.isNotEmpty)
-                                    TextButton(
-                                      onPressed: () =>
-                                          openLink(context, ann.linkUrl),
-                                      child: Text(
-                                        ann.linkText.isEmpty
-                                            ? 'Open'
-                                            : ann.linkText,
-                                      ),
-                                    ),
-                                ],
                               ),
                             ),
-                          ),
+                            TextButton(
+                              onPressed: () => context.go('/study'),
+                              child: const Text('See All'),
+                            ),
+                          ],
+                        ),
+                        const Gap(10),
                         grid([
                           _ReferenceCard(
                             title: 'Study Library',
                             subtitle: 'Your academic library',
                             icon: Icons.menu_book_outlined,
                             art: 'books',
-                            black: !dark,
+                            black: true,
                             onTap: () => context.go('/study'),
                           ),
                           _ReferenceCard(
@@ -348,57 +286,57 @@ class HomeScreen extends ConsumerWidget {
                             art: 'papers',
                             onTap: () => context.go('/pdf-studio'),
                           ),
-                        ], 132),
-                        const Gap(20),
+                        ], 116),
+                        const Gap(14),
+                        Text(
+                          'Others',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const Gap(8),
                         Row(
                           children: [
-                            Text(
-                              'Others',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                            const SizedBox(width: 14),
                             Expanded(
-                              child: Divider(
-                                color: dark
-                                    ? const Color(0xFF55555A)
-                                    : const Color(0xFFD0D0D4),
+                              child: _CompactHomeLink(
+                                label: settings.sectionEnabled('shop')
+                                    ? 'Shop'
+                                    : 'Search',
+                                icon: settings.sectionEnabled('shop')
+                                    ? Icons.storefront_outlined
+                                    : Icons.search,
+                                onTap: () => settings.sectionEnabled('shop')
+                                    ? context.go('/shop')
+                                    : context.go('/search', extra: true),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _CompactHomeLink(
+                                label: 'Downloads',
+                                icon: Icons.file_download_outlined,
+                                badges: badges,
+                                onTap: () => context.go('/downloads'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _CompactHomeLink(
+                                label: 'Study Plan',
+                                icon: Icons.calendar_month_outlined,
+                                onTap: () => context.push('/study-goals'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _CompactHomeLink(
+                                label: 'My Progress',
+                                icon: Icons.bar_chart_rounded,
+                                onTap: () => context.push('/study-progress'),
                               ),
                             ),
                           ],
                         ),
-                        const Gap(14),
-                        grid([
-                          settings.sectionEnabled('shop')
-                              ? _ReferenceCard(
-                                  title: 'Shop',
-                                  subtitle: settings.shopComingSoon
-                                      ? 'Coming soon'
-                                      : 'Study essentials',
-                                  icon: Icons.storefront_outlined,
-                                  art: 'shop',
-                                  onTap: () => context.go('/shop'),
-                                )
-                              : _ReferenceCard(
-                                  title: 'Search',
-                                  subtitle: 'Find your next topic',
-                                  icon: Icons.search,
-                                  art: 'books',
-                                  onTap: () =>
-                                      context.go('/search', extra: true),
-                                ),
-                          _ReferenceCard(
-                            title: 'Downloads',
-                            subtitle: 'Read anywhere, offline',
-                            icon: Icons.file_download_outlined,
-                            art: 'downloads',
-                            badges: badges,
-                            onTap: () => context.go('/downloads'),
-                          ),
-                        ], badges.isEmpty ? 116 : 124),
+                        const Gap(20),
                         if (recent.isNotEmpty) ...[
                           const Gap(24),
                           SectionHeader(
@@ -446,19 +384,19 @@ class _ReferenceCard extends StatelessWidget {
     required this.art,
     required this.onTap,
     this.black = false,
-    this.badges = const [],
   });
   final String title, subtitle, art;
   final IconData icon;
   final VoidCallback onTap;
   final bool black;
-  final List<String> badges;
   @override
   Widget build(BuildContext context) {
-    final ink = black ? Colors.white : Colors.black;
+    final ink = black || Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
     return Semantics(
       button: true,
-      label: [title, ...badges].join(', '),
+      label: title,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
@@ -471,7 +409,11 @@ class _ReferenceCard extends StatelessWidget {
           ],
         ),
         child: Material(
-          color: black ? const Color(0xFF1C1C1E) : Colors.white,
+          color: black
+              ? const Color(0xFF174E8B)
+              : (Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF212123)
+                    : Colors.white),
           borderRadius: BorderRadius.circular(26),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -484,14 +426,14 @@ class _ReferenceCard extends StatelessWidget {
                   child: ExcludeSemantics(
                     child: Image.asset(
                       'assets/home/$art.webp',
-                      width: 72,
-                      height: 76,
+                      width: 58,
+                      height: 60,
                       fit: BoxFit.contain,
                     ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -514,9 +456,9 @@ class _ReferenceCard extends StatelessWidget {
                           height: 1.2,
                         ),
                       ),
-                      const Gap(9),
-                      if (badges.isEmpty) Padding(
-                        padding: const EdgeInsets.only(right: 35),
+                      const Gap(4),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 56),
                         child: Text(
                           subtitle,
                           maxLines: 2,
@@ -527,23 +469,76 @@ class _ReferenceCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (badges.isNotEmpty) ...[
-                        const Gap(6),
-                        Wrap(
-                          spacing: 4,
-                          runSpacing: 3,
-                          children: [
-                            for (final badge in badges)
-                              DecoratedBox(
-                                decoration: BoxDecoration(color: const Color(0xFFE9E9EB), borderRadius: BorderRadius.circular(6)),
-                                child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2), child: Text(badge, style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w700))),
-                              ),
-                          ],
-                        ),
-                      ],
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactHomeLink extends StatelessWidget {
+  const _CompactHomeLink({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.badges = const [],
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final List<String> badges;
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      elevation: dark ? 0 : 2,
+      borderRadius: BorderRadius.circular(17),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height:
+              ((68 + 12 * badges.length) *
+                      MediaQuery.textScalerOf(context).scale(1))
+                  .clamp(68.0, 260.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 25,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                for (final badge in badges)
+                  Text(
+                    badge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
               ],
             ),
           ),

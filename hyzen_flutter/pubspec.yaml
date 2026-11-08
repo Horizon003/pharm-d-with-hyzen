@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  onesignal_flutter: 5.7.3 # onesignal:managed v1 — exact current release
   flutter:
     sdk: flutter
 
@@ -41,6 +42,9 @@ dependencies:
   firebase_auth: 5.3.1
   cloud_firestore: 5.4.3
   shared_preferences: 2.5.3
+  flutter_local_notifications: ^18.0.1
+  flutter_timezone: ^4.1.1
+  timezone: ^0.10.1
   hive: 2.2.3
   hive_flutter: 1.1.0
   path_provider: 2.1.5
@@ -79,6 +83,7 @@ flutter:
 
   assets:
     - assets/home/
+    - assets/home_backgrounds/
     - assets/auth/
     - assets/brand/
     - assets/illustrations/

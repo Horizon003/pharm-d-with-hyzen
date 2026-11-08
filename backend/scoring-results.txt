@@ -1,0 +1,15 @@
+✔ campus date and semester boundaries use campus calendar (25.065308ms)
+✔ duplicates, overlaps and out-of-order intervals count once (0.372667ms)
+✔ daily scored minutes and session caps (1.283018ms)
+✔ 15-minute consecutive-day bonus starts on day two (0.365844ms)
+✔ deterministic ties and periods exclude future/outside records (0.289491ms)
+✔ validation rejects spoofed dates, future times and conflicting ids (0.8613ms)
+✔ server leases reject long disconnects and clock reversal (0.271818ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 180.449858

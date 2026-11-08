@@ -152,7 +152,27 @@ final boolPrefProvider = NotifierProvider.family<BoolPref, bool, String>(
 void fireAndForget(Future<void> f) => unawaited(f);
 
 class TextSizeNotifier extends Notifier<int> {
-  static const sizes = [12, 13, 14, 16, 18];
+  static const sizes = [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+  ];
   @override
   int build() {
     final value = ref.watch(sharedPrefsProvider).getInt('app_text_size');

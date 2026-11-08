@@ -1,0 +1,9 @@
+{
+  "name": "hyzen-onesignal-sender",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {"enabled":true,"traces":{"enabled":true}},
+  "vars": {"FIREBASE_PROJECT_ID":"pharmawhisper-debd2","ADMIN_UID":"Vv6HtZjmUvfVACzvuyL2pFx5HR33","ONESIGNAL_APP_ID":"c8344ed8-429a-4c09-8f74-6cc120918dda","ALLOWED_ORIGIN":"https://horizon003.github.io"},
+  "d1_databases": [{"binding":"DB","database_name":"hyzen-push","database_id":"5d8d186a-d5a8-4d86-851a-0dc028b3fced"}]
+}

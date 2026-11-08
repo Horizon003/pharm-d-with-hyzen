@@ -1,0 +1,78 @@
+name: Verify existing signed Android startup
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: 'Run containing the owner-signed APK'
+        required: true
+        default: '42468919414'
+  push:
+    branches: [feat/onesignal-global-professional]
+    paths: ['.github/workflows/android-startup-check.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  signed-startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id || '42468919414' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the signed artifact has the current Flutter source
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner,repo}=context.repo;
+            const run_id=Number(process.env.ARTIFACT_RUN_ID);
+            if(!Number.isSafeInteger(run_id)||run_id<=0)throw Error('Invalid artifact run');
+            const {data:run}=await github.rest.actions.getWorkflowRun({owner,repo,run_id});
+            const {data:{jobs}}=await github.rest.actions.listJobsForWorkflowRun({owner,repo,run_id});
+            if(!jobs.some(j=>j.name==='owner-signed-apk'&&j.conclusion==='success'))throw Error('Owner signature was not verified');
+            async function flutterTree(commit_sha){
+              const {data:commit}=await github.rest.git.getCommit({owner,repo,commit_sha});
+              const {data:tree}=await github.rest.git.getTree({owner,repo,tree_sha:commit.tree.sha});
+              const entry=tree.tree.find(item=>item.path==='hyzen_flutter'&&item.type==='tree');
+              if(!entry)throw Error('Flutter source tree missing');
+              return entry.sha;
+            }
+            const source=await flutterTree(run.head_sha),current=await flutterTree(context.sha);
+            if(source!==current)throw Error('APK Flutter source differs from current source; rebuild first');
+            core.info('Signed APK Flutter source matches the current source tree');
+      - uses: actions/download-artifact@v4
+        with:
+          name: hyzen-onesignal-owner-signed-apk
+          path: verified-apk
+          run-id: ${{ env.ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            adb install -r "$(find verified-apk -name app-release.apk -print -quit)"
+            adb shell pm grant com.hyzen.pharmd android.permission.POST_NOTIFICATIONS
+            adb logcat -c
+            adb shell monkey -p com.hyzen.pharmd -c android.intent.category.LAUNCHER 1
+            sleep 20
+            adb shell pidof com.hyzen.pharmd
+            adb logcat -d > android-startup.log
+            adb exec-out screencap -p > android-startup.png
+            ! grep -E 'FATAL EXCEPTION|E/flutter.*Unhandled Exception|Fatal signal' android-startup.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hyzen-signed-startup-evidence
+          path: |
+            android-startup.log
+            android-startup.png
+          if-no-files-found: ignore

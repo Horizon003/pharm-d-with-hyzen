@@ -190,10 +190,12 @@ class ScanThumbStrip extends StatelessWidget {
     required this.onSelect,
     required this.onReorder,
     required this.onOptions,
+    this.onAdd,
   });
   final List<String> pages;
   final int selected;
   final ValueChanged<int> onSelect, onOptions;
+  final VoidCallback? onAdd;
   final void Function(int from, int to) onReorder;
 
   @override
@@ -203,6 +205,15 @@ class ScanThumbStrip extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       buildDefaultDragHandles: false,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      footer: SizedBox(
+        width: 64,
+        child: IconButton(
+          key: const ValueKey('scan-more'),
+          tooltip: 'Scan and append page',
+          onPressed: onAdd,
+          icon: const Icon(Icons.add_circle_outline),
+        ),
+      ),
       itemCount: pages.length,
       onReorder: (from, to) => onReorder(from, to > from ? to - 1 : to),
       proxyDecorator: (child, _, __) =>

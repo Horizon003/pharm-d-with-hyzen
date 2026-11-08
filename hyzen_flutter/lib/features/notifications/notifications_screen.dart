@@ -10,6 +10,9 @@ import '../../core/theme/tokens.dart';
 import '../../core/utils/links.dart';
 import '../academics/domain/drive.dart';
 import '../content/data/content_providers.dart';
+import 'push_service.dart';
+import '../study_progress/study_tracker.dart';
+import '../study_progress/study_notifications.dart';
 
 class NotificationsController extends Notifier<List<Map<String, dynamic>>> {
   int _generation = 0;
@@ -80,6 +83,23 @@ class NotificationsController extends Notifier<List<Map<String, dynamic>>> {
   void _persist() => unawaited(
     ref.read(sharedPrefsProvider).setString(key, jsonEncode(state)),
   );
+  void receivePush(Map<String, dynamic> item) {
+    final id = item['id'];
+    if (state.any((entry) => entry['id'] == id)) {
+      if (item['opened'] == true) read(id.toString());
+      return;
+    }
+    state = [
+      {
+        ...item,
+        'read': item['opened'] == true,
+        'receivedAt': DateTime.now().toIso8601String(),
+      },
+      ...state,
+    ].take(100).toList();
+    _persist();
+  }
+
   /// Device-local study reminders; delivered to the in-app inbox on next open.
   /// This does not claim Android OS push/background scheduling.
   void addLocalReminder(String title, String body, String taskId) {
@@ -148,6 +168,106 @@ class NotificationsScreen extends ConsumerWidget {
       appBar: HTopBar(
         title: 'Notifications',
         actions: [
+          IconButton(
+            tooltip: 'Push notification preferences',
+            icon: const Icon(Icons.notifications_active_outlined),
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (dialog) => Consumer(
+                builder: (_, preferencesRef, child) {
+                  final tracker = preferencesRef.watch(studyTrackerProvider);
+                  Future<void> update({bool? goals, bool? streaks}) async {
+                    final allowed = await tracker.setEngagementReminders(
+                      goals: goals,
+                      streaks: streaks,
+                    );
+                    if (context.mounted &&
+                        (!allowed ||
+                            StudyNotificationScheduler.instance.lastError !=
+                                null)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            !allowed
+                                ? 'Permission unavailable. Check Android notification settings.'
+                                : StudyNotificationScheduler
+                                      .instance
+                                      .lastError!,
+                          ),
+                        ),
+                      );
+                    }
+                  }
+
+                  return AlertDialog(
+                    title: const Text('Android push notifications'),
+                    content: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ValueListenableBuilder<String>(
+                            valueListenable:
+                                PushService.instance.subscriptionState,
+                            builder: (_, status, child) => Text(
+                              '$status\n\nEnable announcements, new material, rank and app updates. Study reminders use local device schedules.',
+                            ),
+                          ),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Daily goal reminders'),
+                            subtitle: const Text(
+                              '6 PM · refreshes a week of device alerts',
+                            ),
+                            value: tracker.goalAlerts,
+                            onChanged: (value) => update(goals: value),
+                          ),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Streak reminders'),
+                            subtitle: const Text(
+                              '8 PM · only when a streak needs study',
+                            ),
+                            value: tracker.streakAlerts,
+                            onChanged: (value) => update(streaks: value),
+                          ),
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () async {
+                          await PushService.instance.enable(false);
+                          if (dialog.mounted) Navigator.pop(dialog);
+                        },
+                        child: const Text('Disable'),
+                      ),
+                      FilledButton(
+                        onPressed: () async {
+                          final allowed = await PushService.instance.enable(
+                            true,
+                          );
+                          if (!dialog.mounted) return;
+                          Navigator.pop(dialog);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  allowed
+                                      ? 'Push permission enabled'
+                                      : 'Permission unavailable. Check Android notification settings.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('Enable'),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
           TextButton(
             onPressed: () => ref.read(notificationsProvider.notifier).readAll(),
             child: const Text('Read all'),
@@ -180,7 +300,7 @@ class NotificationsScreen extends ConsumerWidget {
                       if (m['url'] == '/study-progress') {
                         context.push('/study-progress');
                       } else {
-                      openLink(context, '${m['url']}');
+                        openLink(context, '${m['url']}');
                       }
                     }
                   },

@@ -158,7 +158,7 @@ void main() {
         const ProviderScope(child: MaterialApp(home: ScanPdfScreen())),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Save PDF'));
+      await tester.tap(find.byKey(const ValueKey('save-scan-pdf')));
       await tester.pumpAndSettle();
       Navigator.of(tester.element(find.text('File name'))).pop();
       await tester.pumpAndSettle();

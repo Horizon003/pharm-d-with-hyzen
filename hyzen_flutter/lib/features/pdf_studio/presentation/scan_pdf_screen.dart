@@ -11,6 +11,7 @@ import '../data/studio_pdf_engine.dart';
 import 'office_ui.dart';
 import 'scan_review_canvas.dart';
 import 'scan_annotation_sheet.dart';
+import 'scan_filter_sheet.dart';
 
 Future<void> showCreatePdf(BuildContext context) async {
   final router = GoRouter.of(context);
@@ -171,9 +172,55 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
     }
   });
 
-  void _back() {
-    if (_busy) return;
-    // Draft is durable. Leaving the editor never closes the app or discards it.
+  bool _confirmingExit = false;
+  Future<void> _back() async {
+    if (_busy || _confirmingExit) return;
+    if (_pages.isNotEmpty || _crop) {
+      _confirmingExit = true;
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Save your changes?'),
+          content: const Text(
+            'Your scanned pages or edits have not been saved yet.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, 'cancel'),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(c, 'discard'),
+              child: const Text('Discard'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, 'save'),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+      _confirmingExit = false;
+      if (!mounted || choice == null || choice == 'cancel') return;
+      if (choice == 'save') {
+        await _finish();
+        return;
+      }
+      if (_android) {
+        try {
+          await _camera.invokeMethod('clear');
+        } catch (_) {
+          return;
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _pages = [];
+        _crop = false;
+      });
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    if (!mounted) return;
     if (context.canPop()) {
       context.pop();
     } else {
@@ -462,46 +509,19 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
 
   Future<void> _filters() async {
     if (_pages.isEmpty || _busy) return;
-    var all = false;
-    final choice = await showOfficeSheet<String>(
+    final choice = await showOfficeSheet<ScanFilterChoice>(
       context,
-      (sheet) => StatefulBuilder(
-        builder: (c, set) => ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.only(bottom: 12),
-          children: [
-            for (final f in const [
-              ('original', 'Original', Icons.image_outlined),
-              ('magic', 'Magic colour', Icons.auto_fix_high_rounded),
-              ('gray', 'Grayscale', Icons.filter_b_and_w_rounded),
-              ('bw', 'Black & white', Icons.contrast_rounded),
-            ])
-              OfficeSheetItem(
-                icon: f.$3,
-                label: f.$2,
-                onTap: () => Navigator.pop(sheet, f.$1),
-              ),
-            if (_pages.length > 1)
-              SwitchListTile(
-                value: all,
-                activeTrackColor: OfficeColors.blue,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-                title: Text(
-                  'Apply to all pages',
-                  style: TextStyle(color: OfficeColors.ink(c)),
-                ),
-                onChanged: (v) => set(() => all = v),
-              ),
-          ],
-        ),
-      ),
+      (_) => ScanFilterSheet(path: _pages[_sel], multiple: _pages.length > 1),
     );
     if (choice == null || !mounted) return;
-    final paths = all ? [..._pages] : [_pages[_sel]];
+    final paths = choice.all ? [..._pages] : [_pages[_sel]];
     await _work(() async {
       final next = await _camera.invokeListMethod<String>('adjust', {
         'paths': paths,
-        'filter': choice,
+        'filter': choice.filter,
+        'strength': choice.strength,
+        'brightness': choice.brightness,
+        'contrast': choice.contrast,
       });
       if (mounted && next != null) _setPages(next);
     });
@@ -636,6 +656,13 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
             textAlign: TextAlign.center,
             style: TextStyle(color: OfficeColors.muted(context)),
           ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            key: const ValueKey('scan-more'),
+            onPressed: _busy ? null : (_android ? _scan : _gallery),
+            icon: const Icon(Icons.add),
+            label: Text(_android ? 'Scan' : 'Add images'),
+          ),
         ],
       ),
     ),
@@ -683,25 +710,48 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
       ),
     ];
     return PopScope(
-      canPop: false,
+      canPop: _pages.isEmpty && !_crop && !_busy,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _back();
       },
       child: Scaffold(
         backgroundColor: OfficeColors.canvas(context),
         appBar: AppBar(
-          title: Text(_crop ? 'Adjust corners' : 'Review scan'),
+          title: Text(
+            _crop ? 'Adjust corners' : 'Review scan',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           leading: IconButton(
             tooltip: 'Back',
             onPressed: _busy ? null : _back,
             icon: const Icon(Icons.arrow_back_rounded),
           ),
           actions: [
-            IconButton(
-              tooltip: 'Choose gallery images',
-              onPressed: _busy || _crop ? null : _gallery,
-              icon: const Icon(Icons.add_photo_alternate_outlined),
-            ),
+            if (MediaQuery.sizeOf(context).width < 360 ||
+                MediaQuery.textScalerOf(context).scale(1) > 1.3) ...[
+              IconButton(
+                tooltip: 'Add Images',
+                onPressed: _busy || _crop ? null : _gallery,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+              ),
+              IconButton(
+                key: const ValueKey('save-scan-pdf'),
+                tooltip: 'Save PDF',
+                onPressed: _busy || !has ? null : _finish,
+                icon: const Icon(Icons.save_outlined),
+              ),
+            ] else ...[
+              TextButton(
+                onPressed: _busy || _crop ? null : _gallery,
+                child: const Text('Add Images'),
+              ),
+              TextButton(
+                key: const ValueKey('save-scan-pdf'),
+                onPressed: _busy || !has ? null : _finish,
+                child: const Text('Save PDF'),
+              ),
+            ],
           ],
         ),
         body: Column(
@@ -775,56 +825,28 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
                   onTap: _busy || !_android ? null : _autoDetect,
                 ),
               ),
-            if (has && !_crop) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Row(
-                  children: [
-                    ScanRoundButton(
-                      icon: Icons.chevron_left_rounded,
-                      tooltip: 'Previous page',
-                      onTap: !_busy && sel > 0
-                          ? () => setState(() => _selectedPage = sel - 1)
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Center(
-                        child: ScanPill(
-                          label: 'Page ${sel + 1} of $count',
-                          trailing: Icons.keyboard_arrow_down_rounded,
-                          onTap: () => _pageOptions(sel),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ScanRoundButton(
-                      icon: Icons.chevron_right_rounded,
-                      tooltip: 'Next page',
-                      onTap: !_busy && sel + 1 < count
-                          ? () => setState(() => _selectedPage = sel + 1)
-                          : null,
-                    ),
-                  ],
-                ),
+            if (has && !_crop)
+              Text(
+                'Page ${sel + 1} of $count',
+                style: const TextStyle(fontSize: 11),
               ),
-              if (count > 1)
-                ScanThumbStrip(
-                  pages: _pages,
-                  selected: sel,
-                  onSelect: (i) {
-                    if (!_busy) setState(() => _selectedPage = i);
-                  },
-                  onOptions: _pageOptions,
-                  onReorder: (from, to) {
-                    if (_busy || from == to) return;
-                    final next = [..._pages];
-                    next.insert(to, next.removeAt(from));
-                    _replace(next);
-                    setState(() => _selectedPage = to);
-                  },
-                ),
-            ],
+            if (has && !_crop)
+              ScanThumbStrip(
+                pages: _pages,
+                onAdd: _busy ? null : (_android ? _scan : _gallery),
+                selected: sel,
+                onSelect: (i) {
+                  if (!_busy) setState(() => _selectedPage = i);
+                },
+                onOptions: _pageOptions,
+                onReorder: (from, to) {
+                  if (_busy || from == to) return;
+                  final next = [..._pages];
+                  next.insert(to, next.removeAt(from));
+                  _replace(next);
+                  setState(() => _selectedPage = to);
+                },
+              ),
             DecoratedBox(
               decoration: BoxDecoration(
                 color: OfficeColors.bar(context),
@@ -865,45 +887,24 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
                         },
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              key: const ValueKey('scan-more'),
-                              style: officeOutlineStyle(context),
+                      if (_crop)
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            TextButton(
                               onPressed: _busy
                                   ? null
-                                  : _crop
-                                  ? () => setState(() => _crop = false)
-                                  : (_android ? _scan : _gallery),
-                              child: FittedBox(
-                                child: Text(
-                                  _crop
-                                      ? 'Cancel crop'
-                                      : has
-                                      ? 'Keep scanning'
-                                      : (_android ? 'Scan' : 'Add images'),
-                                ),
-                              ),
+                                  : () => setState(() => _crop = false),
+                              child: const Text('Cancel crop'),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: FilledButton(
-                              style: officePrimaryStyle(),
-                              onPressed: _busy || !has
-                                  ? null
-                                  : _crop
-                                  ? _applyCrop
-                                  : _finish,
-                              child: Text(
-                                _crop ? 'Apply crop' : 'Save PDF',
-                                textAlign: TextAlign.center,
-                              ),
+                            FilledButton(
+                              onPressed: _busy ? null : _applyCrop,
+                              child: const Text('Apply crop'),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
                     ],
                   ),
                 ),

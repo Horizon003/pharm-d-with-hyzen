@@ -1,14 +1,24 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import '../widgets/photo_crop_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../errors/app_error.dart';
 
 class MediaUpload {
   static const channel = MethodChannel('com.hyzen.pharmd/csv_files');
-  static Future<String?> pickAndUpload() async {
+  static Future<String?> pickAndUpload({BuildContext? context}) async {
     final value = await channel.invokeMapMethod<String, dynamic>('pickImage');
     if (value == null) return null;
-    final bytes = value['bytes'] as Uint8List;
+    var bytes = value['bytes'] as Uint8List;
+    if (context != null) {
+      if (!context.mounted) return null;
+      final cropped = await Navigator.of(context).push<Uint8List>(
+        MaterialPageRoute(builder: (_) => PhotoCropScreen(bytes: bytes)),
+      );
+      if (cropped == null) return null;
+      bytes = cropped;
+    }
     final request =
         http.MultipartRequest(
             'POST',
@@ -19,7 +29,7 @@ class MediaUpload {
             http.MultipartFile.fromBytes(
               'file',
               bytes,
-              filename: 'hyzen_photo.jpg',
+              filename: context == null ? 'hyzen_photo.jpg' : 'hyzen_photo.png',
             ),
           );
     final client = http.Client();
