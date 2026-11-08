@@ -9,7 +9,7 @@ class HomeAtmosphere extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final base = dark ? Colors.black : const Color(0xFFE8F1FB);
+    final base = Theme.of(context).scaffoldBackgroundColor;
     if (content) return ColoredBox(color: base, child: child);
     final phase = HomeTimePhase.at(ref.watch(homePhaseClockProvider).value);
     final scale = MediaQuery.textScalerOf(context).scale(1);
@@ -51,10 +51,10 @@ class HomeAtmosphere extends ConsumerWidget {
                               Color(0x66000000),
                               Color(0xF0000000),
                             ]
-                          : const [
-                              Color(0x300B1D35),
-                              Color(0x220B1D35),
-                              Color(0xD9E8F1FB),
+                          : [
+                              const Color(0x300B1D35),
+                              const Color(0x220B1D35),
+                              base.withValues(alpha: .85),
                             ],
                     ),
                   ),
