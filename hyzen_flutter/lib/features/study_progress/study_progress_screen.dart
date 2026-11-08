@@ -162,31 +162,25 @@ class StudyProgressScreen extends ConsumerWidget {
                   style: TextStyle(fontSize: 12, color: secondary),
                 ),
                 const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: progress.running
-                        ? progress.pause
-                        : progress.start,
-                    icon: Icon(
-                      progress.running
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
+                if (progress.running)
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: progress.pause,
+                      icon: const Icon(Icons.pause_rounded),
+                      label: const Text('Pause study session'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: dark ? Colors.white : Colors.black,
+                        foregroundColor: dark ? Colors.black : Colors.white,
+                        minimumSize: const Size(0, 48),
+                      ),
                     ),
-                    label: Text(
-                      progress.running
-                          ? 'Pause study session'
-                          : progress.hasSession
-                          ? 'Resume study session'
-                          : 'Start studying',
-                    ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: dark ? Colors.white : Colors.black,
-                      foregroundColor: dark ? Colors.black : Colors.white,
-                      minimumSize: const Size(0, 48),
-                    ),
+                  )
+                else
+                  Text(
+                    'Study time starts automatically when you open a file.',
+                    style: TextStyle(fontSize: 12, color: secondary),
                   ),
-                ),
                 if (progress.hasSession)
                   TextButton.icon(
                     onPressed: progress.stop,

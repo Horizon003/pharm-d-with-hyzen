@@ -175,10 +175,13 @@ class ScanDraftStore(private val context: Context) {
         } catch (e: Throwable) { orig.delete(); throw e }
     }
 
-    fun preview(path: String, filter: String): ByteArray {
+    fun preview(path: String, filter: String, brightness: Int = 0, contrast: Int = 0): ByteArray {
         require(path in pages()) { "Choose a draft page." }
         require(filter in listOf("original", "magic", "gray", "bw"))
-        val metadata = meta(path).put("filter", filter)
+        val metadata = meta(path)
+            .put("filter", filter)
+            .put("brightness", brightness.coerceIn(-100, 100))
+            .put("contrast", contrast.coerceIn(-100, 100))
         val out = File.createTempFile("preview_", ".jpg", context.cacheDir)
         try {
             render(original(path) ?: File(path), metadata, out, 900)
@@ -358,7 +361,12 @@ class HyzenCameraCapture(private val activity: MainActivity, messenger: BinaryMe
                             call.argument<Int>("contrast"),
                         )
                         "annotate" -> store.adjust(listOf(call.argument<String>("path") ?: ""), null, null, null, null, call.argument<List<Map<String, Any?>>>("marks") ?: emptyList())
-                        "preview" -> store.preview(call.argument<String>("path") ?: "", call.argument<String>("filter") ?: "original")
+                        "preview" -> store.preview(
+                            call.argument<String>("path") ?: "",
+                            call.argument<String>("filter") ?: "original",
+                            call.argument<Int>("brightness") ?: 0,
+                            call.argument<Int>("contrast") ?: 0,
+                        )
                         "pageInfo" -> store.pageInfo(call.argument<String>("path") ?: "")
                         "detect" -> store.detectIn(call.argument<String>("path") ?: "")
                         "edit" -> store.edit(call.argument<List<String>>("paths") ?: emptyList(), call.argument<String>("filter") ?: "original", call.argument<List<Double>>("crop"))

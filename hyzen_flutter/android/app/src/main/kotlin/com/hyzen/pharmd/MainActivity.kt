@@ -112,9 +112,9 @@ class MainActivity : FlutterActivity() {
                             fileWorker.execute {
                                 var shared: File? = null
                                 try {
-                                    val folder = File(cacheDir, "hyzen_shares").apply { mkdirs() }
+                                    val folder = File(cacheDir, "hyzen_shares/${System.currentTimeMillis()}").apply { mkdirs() }
                                     val safeName = name.replace(Regex("[^A-Za-z0-9._-]"), "_").take(120)
-                                    val shareCopy = File(folder, "${System.currentTimeMillis()}_$safeName")
+                                    val shareCopy = File(folder, safeName)
                                     shared = shareCopy
                                     File(path).inputStream().use { input ->
                                         shareCopy.outputStream().use { output -> input.copyTo(output) }

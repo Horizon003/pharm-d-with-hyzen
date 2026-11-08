@@ -178,9 +178,7 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               children: [
                 HomeDashboardTop(year: profile?.professionalYear),
-                HomeAtmosphere(
-                  content: true,
-                  child: Padding(
+                Padding(
                     padding: EdgeInsets.fromLTRB(
                       16,
                       0,
@@ -286,7 +284,7 @@ class HomeScreen extends ConsumerWidget {
                             art: 'papers',
                             onTap: () => context.go('/pdf-studio'),
                           ),
-                        ], 128),
+                        ], 116),
                         const Gap(14),
                         Text(
                           'Others',
@@ -366,7 +364,6 @@ class HomeScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -426,14 +423,14 @@ class _ReferenceCard extends StatelessWidget {
                   child: ExcludeSemantics(
                     child: Image.asset(
                       'assets/home/$art.webp',
-                      width: 72,
-                      height: 76,
+                      width: 58,
+                      height: 60,
                       fit: BoxFit.contain,
                     ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -458,7 +455,7 @@ class _ReferenceCard extends StatelessWidget {
                       ),
                       const Gap(4),
                       Padding(
-                        padding: const EdgeInsets.only(right: 35),
+                        padding: const EdgeInsets.only(right: 56),
                         child: Text(
                           subtitle,
                           maxLines: 2,

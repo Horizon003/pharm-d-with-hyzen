@@ -123,6 +123,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
     if (f != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        ref.read(studyTrackerProvider).start();
         ref.read(recentProvider.notifier).touch(f);
       });
     }

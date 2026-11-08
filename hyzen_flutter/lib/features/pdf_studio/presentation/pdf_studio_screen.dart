@@ -507,6 +507,7 @@ class _PdfStudioFileViewerScreenState
       _recorded = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
+          ref.read(studyTrackerProvider).start();
           ref.read(pdfStudioHistoryProvider.notifier).recordOpen(active.id);
         }
       });
