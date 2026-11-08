@@ -121,9 +121,15 @@ const fs = require('node:fs');
       if (scenario.name === 'home-overview') {
         const snapshot = await page.locator('body').ariaSnapshot();
         fs.writeFileSync(`${output}/${theme}-home-accessibility.yml`, snapshot);
-        const statusCard = page.getByRole('button', {name: /Downloads, 2 Downloading, 3 Saved, 1 New/});
+        // The real browser build has no seeded download records. Validate the
+        // live Downloads hit area and preserve any runtime status suffix when
+        // one is present, rather than requiring fabricated sample counts.
+        const statusCard = page.getByRole('button', {name: /^Downloads(?:, .*)?$/});
         await statusCard.first().waitFor({timeout: 15000});
-        evidence.homeStatus = {downloading: 2, saved: 3, unopened: 1, accessible: true};
+        evidence.homeStatus = {
+          label: await statusCard.first().getAttribute('aria-label'),
+          accessible: true,
+        };
         if (await page.getByText('More from Hyzen', {exact: true}).count()) throw Error('Removed Home group remains');
       }
       evidence.captures.push({filename, theme, path: '/home', ...scenario, sampleData: true});
