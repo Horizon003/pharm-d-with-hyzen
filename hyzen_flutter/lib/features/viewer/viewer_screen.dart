@@ -16,6 +16,7 @@ import 'reader_chrome.dart';
 import '../../core/utils/links.dart';
 import '../../core/utils/media_upload.dart';
 import '../../app/providers.dart';
+import '../study_progress/study_tracker.dart';
 import '../pdf_studio/data/pdf_studio_repository.dart';
 import '../pdf_studio/data/studio_file_item.dart';
 import '../pdf_studio/presentation/studio_tools_screen.dart';
