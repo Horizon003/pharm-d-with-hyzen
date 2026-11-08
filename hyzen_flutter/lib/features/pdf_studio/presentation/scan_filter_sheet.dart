@@ -5,11 +5,13 @@ class ScanFilterChoice {
   const ScanFilterChoice(
     this.filter,
     this.all, {
+    this.strength = 100,
     this.brightness = 0,
     this.contrast = 0,
   });
   final String filter;
   final bool all;
+  final int strength;
   final int brightness;
   final int contrast;
 }
@@ -36,8 +38,8 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
   }
 
   String _filter = 'original', _committed = 'original';
-  int _brightness = 0, _contrast = 0;
-  int _committedBrightness = 0, _committedContrast = 0;
+  int _strength = 100, _brightness = 0, _contrast = 0;
+  int _committedStrength = 100, _committedBrightness = 0, _committedContrast = 0;
   bool _all = false, _loading = true, _processing = false;
   Uint8List? _bytes;
   String? _error;
@@ -54,9 +56,11 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
       });
       _committed = info?['filter'] as String? ?? 'original';
       _filter = _committed;
+      _committedStrength = (info?['strength'] as num?)?.round() ?? 100;
       _committedBrightness = (info?['brightness'] as num?)?.round() ?? 0;
       _committedContrast = (info?['contrast'] as num?)?.round() ?? 0;
       _brightness = _committedBrightness;
+      _strength = _committedStrength;
       _contrast = _committedContrast;
     } catch (_) {}
     if (mounted) _preview();
@@ -69,6 +73,7 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
       final requested = _filter;
       final requestedBrightness = _brightness;
       final requestedContrast = _contrast;
+      final requestedStrength = _strength;
       setState(() {
         _loading = true;
         _error = null;
@@ -77,13 +82,15 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
         final bytes = await _camera.invokeMethod<Uint8List>('preview', {
           'path': widget.path,
           'filter': requested,
+          'strength': requestedStrength,
           'brightness': _brightness,
           'contrast': _contrast,
         });
         if (!mounted) break;
         if (requested == _filter &&
             requestedBrightness == _brightness &&
-            requestedContrast == _contrast) {
+            requestedContrast == _contrast &&
+            requestedStrength == _strength) {
           setState(() {
             _bytes = bytes;
             _loading = false;
@@ -93,7 +100,8 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
         if (mounted &&
             requested == _filter &&
             requestedBrightness == _brightness &&
-            requestedContrast == _contrast) {
+            requestedContrast == _contrast &&
+            requestedStrength == _strength) {
           setState(() {
             _error = 'Preview could not load. Select a filter to retry.';
             _loading = false;
@@ -102,7 +110,8 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
       }
       if (requested == _filter &&
           requestedBrightness == _brightness &&
-          requestedContrast == _contrast) {
+          requestedContrast == _contrast &&
+          requestedStrength == _strength) {
         break;
       }
     }
@@ -111,6 +120,7 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
 
   Future<void> _back() async {
     if (_filter == _committed &&
+        _strength == _committedStrength &&
         _brightness == _committedBrightness &&
         _contrast == _committedContrast &&
         !_all) {
@@ -144,6 +154,7 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
         ScanFilterChoice(
           _filter,
           _all,
+          strength: _strength,
           brightness: _brightness,
           contrast: _contrast,
         ),
@@ -183,6 +194,7 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
                           ScanFilterChoice(
                             _filter,
                             _all,
+                            strength: _strength,
                             brightness: _brightness,
                             contrast: _contrast,
                           ),
@@ -227,6 +239,15 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
             ),
           ),
           _AdjustmentSlider(
+            label: 'Filter strength',
+            value: _strength,
+            min: 0,
+            max: 100,
+            icon: Icons.tune_rounded,
+            onChanged: (v) => setState(() => _strength = v.round()),
+            onChangeEnd: (_) => _preview(),
+          ),
+          _AdjustmentSlider(
             label: 'Brightness',
             value: _brightness,
             icon: Icons.brightness_6_outlined,
@@ -256,12 +277,15 @@ class _AdjustmentSlider extends StatelessWidget {
   const _AdjustmentSlider({
     required this.label,
     required this.value,
+    this.min = -100,
+    this.max = 100,
     required this.icon,
     required this.onChanged,
     required this.onChangeEnd,
   });
   final String label;
   final int value;
+  final double min, max;
   final IconData icon;
   final ValueChanged<double> onChanged;
   final ValueChanged<double> onChangeEnd;
@@ -276,10 +300,10 @@ class _AdjustmentSlider extends StatelessWidget {
         SizedBox(width: 76, child: Text(label)),
         Expanded(
           child: Slider(
-            min: -100,
-            max: 100,
-            divisions: 40,
-            value: value.toDouble().clamp(-100.0, 100.0).toDouble(),
+            min: min,
+            max: max,
+            divisions: ((max - min) / 5).round(),
+            value: value.toDouble().clamp(min, max).toDouble(),
             label: '$value',
             onChanged: onChanged,
             onChangeEnd: onChangeEnd,

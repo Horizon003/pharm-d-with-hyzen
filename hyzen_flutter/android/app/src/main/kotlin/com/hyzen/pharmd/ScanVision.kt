@@ -651,9 +651,10 @@ object ScanVision {
      * filter: original | magic | gray | bw  ("contrast" = legacy alias of magic)
      * brightness / contrast: -100..100
      */
-    fun enhance(argb: IntArray, w: Int, h: Int, filter: String, brightness: Int = 0, contrast: Int = 0) {
+    fun enhance(argb: IntArray, w: Int, h: Int, filter: String, strength: Int = 100, brightness: Int = 0, contrast: Int = 0) {
         val n = w * h
         val mode = if (filter == "contrast") "magic" else filter
+        val original = if (strength.coerceIn(0, 100) < 100 && mode != "original") argb.copyOf() else null
         if (mode == "magic" || mode == "gray" || mode == "bw") {
             val lum = FloatArray(n)
             for (i in 0 until n) {
@@ -692,6 +693,18 @@ object ScanVision {
                         argb[y * w + x] = (argb[y * w + x] and -0x1000000) or (q shl 16) or (q shl 8) or q
                     }
                 }
+            }
+        }
+        if (original != null) {
+            val amount = strength.coerceIn(0, 100) / 100f
+            val inverse = 1f - amount
+            for (i in 0 until n) {
+                val filtered = argb[i]
+                val source = original[i]
+                val r = (((source shr 16) and 255) * inverse + ((filtered shr 16) and 255) * amount).toInt().coerceIn(0, 255)
+                val g = (((source shr 8) and 255) * inverse + ((filtered shr 8) and 255) * amount).toInt().coerceIn(0, 255)
+                val b = ((source and 255) * inverse + (filtered and 255) * amount).toInt().coerceIn(0, 255)
+                argb[i] = (filtered and -0x1000000) or (r shl 16) or (g shl 8) or b
             }
         }
         if (brightness != 0 || contrast != 0) {

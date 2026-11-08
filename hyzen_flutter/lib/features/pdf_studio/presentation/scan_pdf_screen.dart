@@ -519,6 +519,7 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
       final next = await _camera.invokeListMethod<String>('adjust', {
         'paths': paths,
         'filter': choice.filter,
+        'strength': choice.strength,
         'brightness': choice.brightness,
         'contrast': choice.contrast,
       });

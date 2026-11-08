@@ -120,52 +120,58 @@ class HomeLandscape extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final base = Theme.of(context).scaffoldBackgroundColor;
     final reduceMotion = MediaQuery.of(context).disableAnimations;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: SizedBox(
-        height: height,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            AnimatedSwitcher(
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 320),
-              layoutBuilder: (current, previous) => Stack(
-                fit: StackFit.expand,
-                children: [...previous, if (current != null) current],
-              ),
+    return SizedBox(
+      height: height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          AnimatedSwitcher(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 320),
+            layoutBuilder: (current, previous) => Stack(
+              fit: StackFit.expand,
+              children: [...previous, if (current != null) current],
+            ),
+            child: ShaderMask(
+              key: ValueKey(phase),
+              blendMode: BlendMode.dstIn,
+              shaderCallback: (bounds) => LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  base.withValues(alpha: 0),
+                  const Color(0xFFFFFFFF),
+                  const Color(0xFFFFFFFF),
+                  base.withValues(alpha: 0),
+                ],
+                stops: const [0, .18, .78, 1],
+              ).createShader(bounds),
               child: Image.asset(
                 phase.asset,
-                key: ValueKey(phase),
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
-                errorBuilder: (_, __, ___) =>
-                    const ColoredBox(color: Color(0xFF1A3C64)),
+                filterQuality: FilterQuality.medium,
+                errorBuilder: (_, __, ___) => ColoredBox(color: base),
               ),
             ),
-            DecoratedBox(
+          ),
+          IgnorePointer(
+            child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: dark
-                      ? const [
-                          Color(0xDD030407),
-                          Color(0x33000000),
-                          Color(0xC9000000),
-                        ]
-                      : const [
-                          Color(0x00000000),
-                          Color(0x00000000),
-                          Color(0x4F112846),
-                        ],
+                      ? const [Color(0x22000000), Color(0x00000000), Color(0x44000000)]
+                      : const [Color(0x120B1D35), Color(0x00000000), Color(0x1A112846)],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

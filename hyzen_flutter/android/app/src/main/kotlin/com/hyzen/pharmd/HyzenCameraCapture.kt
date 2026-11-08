@@ -167,7 +167,7 @@ class ScanDraftStore(private val context: Context) {
             val q = refined?.takeIf { ScanVision.validQuad(it) } ?: FULL
             val page = File.createTempFile("page_", ".jpg", folder)
             val m = org.json.JSONObject().put("orig", orig.name).put("quad", org.json.JSONArray(q))
-                .put("filter", "magic").put("brightness", 0).put("contrast", 0).put("rotation", 0)
+                .put("filter", "magic").put("strength", 100).put("brightness", 0).put("contrast", 0).put("rotation", 0)
             render(orig, m, page)
             prefs.edit().putString(metaKey(page.path), m.toString()).commit()
             current.add(page.path); save(current)
@@ -175,11 +175,12 @@ class ScanDraftStore(private val context: Context) {
         } catch (e: Throwable) { orig.delete(); throw e }
     }
 
-    fun preview(path: String, filter: String, brightness: Int = 0, contrast: Int = 0): ByteArray {
+    fun preview(path: String, filter: String, strength: Int = 100, brightness: Int = 0, contrast: Int = 0): ByteArray {
         require(path in pages()) { "Choose a draft page." }
         require(filter in listOf("original", "magic", "gray", "bw"))
         val metadata = meta(path)
             .put("filter", filter)
+            .put("strength", strength.coerceIn(0, 100))
             .put("brightness", brightness.coerceIn(-100, 100))
             .put("contrast", contrast.coerceIn(-100, 100))
         val out = File.createTempFile("preview_", ".jpg", context.cacheDir)
@@ -201,7 +202,7 @@ class ScanDraftStore(private val context: Context) {
                 val r = Bitmap.createBitmap(b, 0, 0, b.width, b.height, Matrix().apply { postRotate(rot.toFloat()) }, true)
                 if (r !== b) { b.recycle(); b = r }
             }
-            val f = ScanBitmaps.enhance(b, m.optString("filter", "original"), m.optInt("brightness", 0), m.optInt("contrast", 0))
+            val f = ScanBitmaps.enhance(b, m.optString("filter", "original"), m.optInt("strength", 100), m.optInt("brightness", 0), m.optInt("contrast", 0))
             b.recycle(); b = f
             val marks = m.optJSONArray("marks")
             if (marks != null) {
@@ -231,7 +232,7 @@ class ScanDraftStore(private val context: Context) {
     }
 
     /** Re-render pages from originals with new crop / filter. Returns new list. */
-    fun adjust(paths: List<String>, quad: List<Double>?, filter: String?, brightness: Int?, contrast: Int?, marks: List<Map<String, Any?>>? = null): List<String> {
+    fun adjust(paths: List<String>, quad: List<Double>?, filter: String?, strength: Int?, brightness: Int?, contrast: Int?, marks: List<Map<String, Any?>>? = null): List<String> {
         val current = pages()
         require(paths.isNotEmpty() && paths.all { it in current })
         require(filter == null || filter in setOf("original", "magic", "gray", "bw", "contrast"))
@@ -264,6 +265,7 @@ class ScanDraftStore(private val context: Context) {
                 }
                 if (quad != null) m.put("quad", org.json.JSONArray(quad))
                 if (filter != null) m.put("filter", if (filter == "contrast") "magic" else filter)
+                if (strength != null) m.put("strength", strength.coerceIn(0, 100))
                 if (brightness != null) m.put("brightness", brightness.coerceIn(-100, 100))
                 if (contrast != null) m.put("contrast", contrast.coerceIn(-100, 100))
                 val out = File.createTempFile("page_", ".jpg", folder); created.add(out)
@@ -293,6 +295,7 @@ class ScanDraftStore(private val context: Context) {
             "original" to (original(path)?.path ?: path),
             "quad" to (if (qa != null && qa.length() == 8) (0 until 8).map { qa.getDouble(it) } else FULL),
             "filter" to m.optString("filter", "original"),
+            "strength" to m.optInt("strength", 100),
             "brightness" to m.optInt("brightness", 0),
             "contrast" to m.optInt("contrast", 0),
             "hasOriginal" to (original(path) != null),
@@ -357,13 +360,15 @@ class HyzenCameraCapture(private val activity: MainActivity, messenger: BinaryMe
                             call.argument<List<String>>("paths") ?: emptyList(),
                             call.argument<List<Double>>("quad"),
                             call.argument<String>("filter"),
+                            call.argument<Int>("strength"),
                             call.argument<Int>("brightness"),
                             call.argument<Int>("contrast"),
                         )
-                        "annotate" -> store.adjust(listOf(call.argument<String>("path") ?: ""), null, null, null, null, call.argument<List<Map<String, Any?>>>("marks") ?: emptyList())
+                        "annotate" -> store.adjust(listOf(call.argument<String>("path") ?: ""), null, null, null, null, null, call.argument<List<Map<String, Any?>>>("marks") ?: emptyList())
                         "preview" -> store.preview(
                             call.argument<String>("path") ?: "",
                             call.argument<String>("filter") ?: "original",
+                            call.argument<Int>("strength") ?: 100,
                             call.argument<Int>("brightness") ?: 0,
                             call.argument<Int>("contrast") ?: 0,
                         )
