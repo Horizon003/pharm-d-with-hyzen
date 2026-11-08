@@ -7,11 +7,11 @@ import 'package:flutter/material.dart';
 class HColors {
   HColors._();
   // Brand
-  static const primary = Color(0xFF1C1C1E);
-  static const primaryDeep = Color(0xFF000000);
-  static const primarySoft = Color(0xFFE8E8E6);
-  static const slate = Color(0xFF252525);
-  static const slateDeep = Color(0xFF111111);
+  static const primary = Color(0xFF174E8B);
+  static const primaryDeep = Color(0xFF0D2F5C);
+  static const primarySoft = Color(0xFFE6F0FC);
+  static const slate = Color(0xFF1B3557);
+  static const slateDeep = Color(0xFF0C1933);
   static const teal = Color(0xFF087F76);
   static const mint = Color(0xFF5FD1C1);
   static const onPrimary = Colors.white;
@@ -22,11 +22,11 @@ class HColors {
   static const ink3 = Color(0xFF8C8C8C);
 
   // Surfaces (light)
-  static const background = Color(0xFFF6F6F4);
-  static const surface = Colors.white;
-  static const surfaceAlt = Color(0xFFEDEDEB);
-  static const outline = Color(0xFFE2E2E0);
-  static const outlineStrong = Color(0xFFCACAC7);
+  static const background = Color(0xFFEEF4FC);
+  static const surface = Color(0xFFF9FBFF);
+  static const surfaceAlt = Color(0xFFE7F0FB);
+  static const outline = Color(0xFFD1E0F1);
+  static const outlineStrong = Color(0xFF9DBBDE);
 
   // Status
   static const success = Color(0xFF15885A);
@@ -35,12 +35,12 @@ class HColors {
   static const info = Color(0xFF2B6F9E);
 
   // Dark
-  static const darkBackground = Color(0xFF101010);
-  static const darkSurface = Color(0xFF1C1C1C);
-  static const darkSurfaceAlt = Color(0xFF292929);
-  static const darkInk = Color(0xFFF5F5F3);
-  static const darkInk2 = Color(0xFFB4B4B0);
-  static const darkPrimary = Color(0xFFF2F2F0);
+  static const darkBackground = Colors.black;
+  static const darkSurface = Color(0xFF191A1C);
+  static const darkSurfaceAlt = Color(0xFF25272B);
+  static const darkInk = Color(0xFFF7F9FC);
+  static const darkInk2 = Color(0xFFB8C0CC);
+  static const darkPrimary = Color(0xFF79BCFF);
 
   /// Restrained module accents – used on small icon badges only.
   static const notes = Color(0xFF1C1C1E);

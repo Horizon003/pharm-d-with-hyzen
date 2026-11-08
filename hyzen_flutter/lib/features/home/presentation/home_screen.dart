@@ -84,7 +84,7 @@ class HomeScreen extends ConsumerWidget {
         integratedHeader: true,
         headerTheme: Theme.of(context),
         header: ColoredBox(
-          color: dark ? Colors.black : const Color(0xFFE8F1FB),
+          color: Theme.of(context).scaffoldBackgroundColor,
           child: SafeArea(
             bottom: false,
             child: Padding(
@@ -102,7 +102,10 @@ class HomeScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline,
+                            width: 1.5,
+                          ),
                         ),
                         child: ClipOval(
                           child: profile?.photoUrl != null
@@ -201,7 +204,7 @@ class HomeScreen extends ConsumerWidget {
                               ],
                             ),
                             child: Material(
-                              color: dark ? const Color(0xFF212123) : Colors.white,
+                              color: Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(32),
                               clipBehavior: Clip.antiAlias,
                               child: InkWell(
@@ -213,21 +216,27 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.search, color: dark ? Colors.white : Colors.black),
+                                      Icon(
+                                        Icons.search,
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                      ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
                                           'Search subjects, topics or files',
                                           style: TextStyle(
-                                            color: dark ? Colors.white : Colors.black,
+                                            color: Theme.of(context).colorScheme.onSurface,
                                             fontSize: 13,
                                           ),
                                         ),
                                       ),
                                       IconButton(tooltip: 'Scan a document',
                                         onPressed: () => context.push('/create-pdf'),
-                                        icon: Icon(Icons.document_scanner_outlined,
-                                          color: dark ? Colors.white : Colors.black)),
+                                        icon: Icon(
+                                          Icons.document_scanner_outlined,
+                                          color: Theme.of(context).colorScheme.onSurface,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -277,7 +286,7 @@ class HomeScreen extends ConsumerWidget {
                             art: 'papers',
                             onTap: () => context.go('/pdf-studio'),
                           ),
-                        ], 128),
+                        ], 116),
                         const Gap(14),
                         Text(
                           'Others',
@@ -417,14 +426,14 @@ class _ReferenceCard extends StatelessWidget {
                   child: ExcludeSemantics(
                     child: Image.asset(
                       'assets/home/$art.webp',
-                      width: 72,
-                      height: 76,
+                      width: 58,
+                      height: 60,
                       fit: BoxFit.contain,
                     ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -449,7 +458,7 @@ class _ReferenceCard extends StatelessWidget {
                       ),
                       const Gap(4),
                       Padding(
-                        padding: const EdgeInsets.only(right: 35),
+                        padding: const EdgeInsets.only(right: 56),
                         child: Text(
                           subtitle,
                           maxLines: 2,
@@ -487,7 +496,7 @@ class _CompactHomeLink extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: dark ? const Color(0xFF212123) : const Color(0xFFF9FBFF),
+      color: Theme.of(context).colorScheme.surface,
       elevation: dark ? 0 : 2,
       borderRadius: BorderRadius.circular(17),
       clipBehavior: Clip.antiAlias,
@@ -506,7 +515,7 @@ class _CompactHomeLink extends StatelessWidget {
                 Icon(
                   icon,
                   size: 25,
-                  color: dark ? Colors.white : const Color(0xFF174E8B),
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(height: 6),
                 Text(

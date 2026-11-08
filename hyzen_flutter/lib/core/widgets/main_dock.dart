@@ -62,7 +62,7 @@ class MainDock extends ConsumerWidget {
             shadowColor: Colors.black26,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(HRadius.pill),
-              side: const BorderSide(color: Color(0xFF29292D)),
+              side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
             ),
             clipBehavior: Clip.antiAlias,
             child: SizedBox(

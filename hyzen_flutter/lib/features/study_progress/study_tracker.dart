@@ -460,7 +460,7 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
   void checkpoint() => _tick();
   StudySyncWorker? _sync;
   String get cloudStatus => _cloudStatus;
-  String _cloudStatus = 'Saved on this device · cloud sync not configured';
+  String _cloudStatus = 'Saved on this device';
   void attachCloud(StudyCloud cloud) {
     _sync?.dispose();
     _sync = StudySyncWorker(

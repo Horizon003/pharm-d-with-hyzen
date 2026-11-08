@@ -419,10 +419,10 @@ object ScanBitmaps {
         return Bitmap.createBitmap(out, size[0], size[1], Bitmap.Config.ARGB_8888)
     }
 
-    fun enhance(src: Bitmap, filter: String, brightness: Int, contrast: Int): Bitmap {
+    fun enhance(src: Bitmap, filter: String, strength: Int, brightness: Int, contrast: Int): Bitmap {
         val w = src.width; val h = src.height
         val px = IntArray(w * h); src.getPixels(px, 0, w, 0, 0, w, h)
-        ScanVision.enhance(px, w, h, filter, brightness, contrast)
+        ScanVision.enhance(px, w, h, filter, strength, brightness, contrast)
         return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
     }
 
