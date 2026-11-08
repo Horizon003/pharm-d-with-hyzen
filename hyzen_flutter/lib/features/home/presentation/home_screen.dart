@@ -178,7 +178,9 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               children: [
                 HomeDashboardTop(year: profile?.professionalYear),
-                Padding(
+                HomeAtmosphere(
+                  content: true,
+                  child: Padding(
                     padding: EdgeInsets.fromLTRB(
                       16,
                       0,
@@ -364,6 +366,7 @@ class HomeScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
+                ),
               ],
             ),
           ),
