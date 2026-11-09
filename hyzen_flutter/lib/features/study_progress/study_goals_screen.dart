@@ -180,7 +180,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                       fit: BoxFit.cover,
                     ),
                   ),
-                  const Positioned.fill(
+                  Positioned.fill(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -379,7 +379,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                     onTap: () => _addTask(progress),
                   ),
                   if (todayTasks.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.all(18),
                       child: Text(
                         'No study tasks yet. Add a real task to start tracking.',
@@ -664,7 +664,6 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 
