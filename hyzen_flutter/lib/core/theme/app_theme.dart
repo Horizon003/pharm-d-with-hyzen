@@ -215,7 +215,8 @@ class AppTheme {
         style: FilledButton.styleFrom(
           minimumSize: const Size(0, 44),
           textStyle: text.labelLarge?.copyWith(fontSize: 14),
-          elevation: 0,
+          elevation: 1,
+          shadowColor: dark ? Colors.black87 : Colors.black26,
           shape: RoundedRectangleBorder(borderRadius: HRadius.all(HRadius.md)),
         ),
       ),
@@ -254,6 +255,8 @@ class AppTheme {
           minimumSize: const Size(0, 44),
           foregroundColor: ink,
           textStyle: text.labelLarge,
+          elevation: 1,
+          shadowColor: dark ? Colors.black87 : Colors.black26,
           side: BorderSide(color: scheme.outline),
           shape: RoundedRectangleBorder(borderRadius: HRadius.all(HRadius.md)),
         ),

@@ -75,10 +75,38 @@ class AppShell extends ConsumerWidget {
           navigationShell.goBranch(0, initialLocation: true);
           await SystemNavigator.pop();
         }
-      },
+      ),
       child: Scaffold(
         extendBody: true,
-        body: UpdateGate(child: navigationShell),
+        body: UpdateGate(
+          child: AnimatedSwitcher(
+            duration: HMotion.fast,
+            reverseDuration: const Duration(milliseconds: 120),
+            switchInCurve: HMotion.curve,
+            switchOutCurve: Curves.easeIn,
+            layoutBuilder: (current, previous) => Stack(
+              fit: StackFit.expand,
+              children: [
+                ...previous,
+                if (current != null) current,
+              ],
+            ),
+            transitionBuilder: (child, animation) {
+              final offset = Tween<Offset>(
+                begin: const Offset(0.018, 0),
+                end: Offset.zero,
+              ).animate(animation);
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: offset, child: child),
+              );
+            },
+            child: KeyedSubtree(
+              key: ValueKey(path),
+              child: navigationShell,
+            ),
+          ),
+        ),
         bottomNavigationBar: reader || account
             ? null
             : MainDock(

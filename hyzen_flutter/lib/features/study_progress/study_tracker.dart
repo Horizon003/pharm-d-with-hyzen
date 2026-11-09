@@ -460,7 +460,14 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
   void checkpoint() => _tick();
   StudySyncWorker? _sync;
   String get cloudStatus => _cloudStatus;
-  String _cloudStatus = 'Saved on this device';
+  String _cloudStatus = 'Cloud sync unavailable · saved on this device';
+  void markCloudUnavailable() {
+    if (_disposed || _cloudStatus == 'Cloud sync unavailable · saved on this device') {
+      return;
+    }
+    _cloudStatus = 'Cloud sync unavailable · saved on this device';
+    notifyListeners();
+  }
   void attachCloud(StudyCloud cloud) {
     _sync?.dispose();
     _sync = StudySyncWorker(
@@ -706,9 +713,9 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    _disposed = true;
-    _sync?.dispose();
     pause();
+    _sync?.dispose();
+    _disposed = true;
     _watch.stop();
     _timer?.cancel();
     // Account-scoped alarms must not survive a logout/account switch.
@@ -743,6 +750,8 @@ final studyTrackerProvider = ChangeNotifierProvider<StudyTracker>((ref) {
       studyApiBase.isNotEmpty &&
       ref.watch(firebaseReadyProvider)) {
     tracker.attachCloud(StudyCloud(user));
+  } else if (user != null) {
+    tracker.markCloudUnavailable();
   }
   return tracker;
 });
