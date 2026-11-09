@@ -1,0 +1,39 @@
+// Console-rendered backup; whitespace normalized. Observed 2026-10-25.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.uid == 'Vv6HtZjmUvfVACzvuyL2pFx5HR33';
+    }
+    function isPrivateDoc(id) {
+      return id in [
+        'pw_orders', 'pw_users', 'pw_messages', 'pw_session', 'pw_cart',
+        'pw_firebase_config', 'pw_cloudinary_config'
+      ];
+    }
+    match /settings/{docId} {
+      allow read: if !isPrivateDoc(docId) || isAdmin();
+      allow write: if isAdmin();
+    }
+    match /verifications/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+    match /orders_inbox/{id} {
+      allow create: if true;
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+    match /messages_inbox/{id} {
+      allow create: if true;
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

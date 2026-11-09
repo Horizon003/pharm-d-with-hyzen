@@ -1,0 +1,25 @@
+name: Hyzen source and offline contract checks
+on:
+  push:
+    branches: [work/hyzen-phase-01]
+    paths:
+      - tools/**
+      - .github/workflows/quiz-csv-preflight.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate source assembly and offline CSV contract
+        run: python3 -m unittest discover -s tools/tests -v
+      - name: Assemble actual repository inputs without build or deployment
+        run: python3 tools/assemble_review.py --repo . --output assembled-review
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hyzen-review-assembly-manifest
+          path: assembled-review/review_assembly_manifest.json
+          if-no-files-found: error
