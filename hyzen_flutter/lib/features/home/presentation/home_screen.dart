@@ -12,6 +12,7 @@ import '../../downloads/domain/download_record.dart';
 import 'home_background.dart';
 import 'home_dashboard_top.dart';
 import 'home_time_artwork.dart';
+import 'home_visuals.dart';
 import 'announcement_carousel.dart';
 import '../../../core/widgets/ui_kit.dart';
 import '../../../core/widgets/profile_avatar.dart';
@@ -195,13 +196,11 @@ class HomeScreen extends ConsumerWidget {
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(32),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x66000000),
-                                  blurRadius: 20,
-                                  offset: Offset(0, 12),
-                                ),
-                              ],
+                              boxShadow: homeDepthShadows(
+                                context,
+                                blur: 18,
+                                y: 8,
+                              ),
                             ),
                             child: Material(
                               color: Theme.of(context).colorScheme.surface,
@@ -412,13 +411,7 @@ class _ReferenceCard extends StatelessWidget {
                   stops: [0, .58, 1],
                 )
               : null,
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x22000000),
-              blurRadius: 16,
-              offset: Offset(0, 9),
-            ),
-          ],
+          boxShadow: homeDepthShadows(context, blur: 16, y: 8),
         ),
         child: Material(
           color: black
@@ -507,12 +500,17 @@ class _CompactHomeLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      elevation: dark ? 0 : 2,
-      borderRadius: BorderRadius.circular(17),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(17),
+        boxShadow: homeDepthShadows(context, blur: 11, y: 5, opacity: .85),
+      ),
+      child: Material(
+        color: Theme.of(context).colorScheme.surface,
+        elevation: dark ? 0 : 2,
+        borderRadius: BorderRadius.circular(17),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
         onTap: onTap,
         child: SizedBox(
           height:
@@ -554,6 +552,7 @@ class _CompactHomeLink extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
