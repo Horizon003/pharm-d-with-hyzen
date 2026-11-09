@@ -53,38 +53,60 @@ final parsedLibraryProvider =
         fetchedAt: snapshot.fetchedAt,
       );
     });
+
+/// The live catalog is populated progressively. If a student's selected
+/// professional year is not published in a particular library yet, do not
+/// turn the entire library into an empty screen; show the available catalog
+/// until that year is added.
+Library _forProfessionalYear(Library library, int? year, bool admin) {
+  if (admin || year == null) return library;
+  final matching = library.years
+      .where((candidate) => candidate.yearNumber == year)
+      .toList();
+  return matching.isEmpty ? library : Library(library.kind, matching);
+}
+
+List<LectureYear> _lecturesForProfessionalYear(
+  List<LectureYear> lectures,
+  int? year,
+  bool admin,
+) {
+  if (admin || year == null) return lectures;
+  final matching = lectures
+      .where(
+        (lecture) =>
+            (professionalNumber(lecture.label) ??
+                professionalNumber(lecture.id)) ==
+            year,
+      )
+      .toList();
+  return matching.isEmpty ? lectures : matching;
+}
+
 final libraryProvider =
     Provider.family<AsyncValue<Loaded<Library>>, LibraryKind>((ref, kind) {
-      final year = ref.watch(professionalYearProvider);
-      final admin = ref.watch(isAdminProvider);
-      return ref.watch(parsedLibraryProvider(kind)).whenData((loaded) {
-        final library = loaded.data;
-        return Loaded(
-          admin || year == null
-              ? library
-              : Library(
-                  kind,
-                  library.years.where((y) => y.yearNumber == year).toList(),
-                ),
-          fromCache: loaded.fromCache,
-          fetchedAt: loaded.fetchedAt,
-        );
-      });
-    });
+  final year = ref.watch(professionalYearProvider);
+  final admin = ref.watch(isAdminProvider);
+  return ref.watch(parsedLibraryProvider(kind)).whenData((loaded) {
+    final library = loaded.data;
+    return Loaded(
+      _forProfessionalYear(library, year, admin),
+      fromCache: loaded.fromCache,
+      fetchedAt: loaded.fetchedAt,
+    );
+  });
+});
 
 final lecturesProvider = Provider<AsyncValue<Loaded<List<LectureYear>>>>((ref) {
   final year = ref.watch(professionalYearProvider);
   final admin = ref.watch(isAdminProvider);
   return _map(
     ref.watch(contentProvider('pw_lectures_tree')),
-    (v) => LectureYear.parseAll(v)
-        .where(
-          (y) =>
-              admin ||
-              year == null ||
-              (professionalNumber(y.label) ?? professionalNumber(y.id)) == year,
-        )
-        .toList(),
+    (v) => _lecturesForProfessionalYear(
+      LectureYear.parseAll(v),
+      year,
+      admin,
+    ),
   );
 });
 
