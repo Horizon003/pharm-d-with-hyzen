@@ -16,15 +16,21 @@ def main() -> None:
         "    file(DOWNLOAD https://github.com/bblanchon/pdfium-binaries/releases/download/"
         "${PDFIUM_RELEASE}/${PDFIUM_ARCHIVE_NAME}.tgz ${PDFIUM_RELEASE_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz)"
     )
-    new = """    # GitHub release downloads can transiently return 504/partial data in CI.
-    # curl retries the exact asset before CMake attempts to unpack it.
-    execute_process(
-        COMMAND curl --fail --location --retry 6 --retry-all-errors
-                --connect-timeout 30 --max-time 600
-                https://github.com/bblanchon/pdfium-binaries/releases/download/${PDFIUM_RELEASE}/${PDFIUM_ARCHIVE_NAME}.tgz
-                --output ${PDFIUM_RELEASE_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz
-        RESULT_VARIABLE DOWNLOAD_STATUS
-    )
+    new = """    # Prefer the repository mirror so APK builds do not depend on GitHub's
+    # release-assets endpoint. Keep curl as a resilient fallback for local use.
+    if(DEFINED ENV{PDFIUM_MIRROR_DIR} AND EXISTS "$ENV{PDFIUM_MIRROR_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz")
+        file(COPY "$ENV{PDFIUM_MIRROR_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz"
+             DESTINATION ${PDFIUM_RELEASE_DIR})
+        set(DOWNLOAD_STATUS 0)
+    else()
+        execute_process(
+            COMMAND curl --fail --location --retry 6 --retry-all-errors
+                    --connect-timeout 30 --max-time 600
+                    https://github.com/bblanchon/pdfium-binaries/releases/download/${PDFIUM_RELEASE}/${PDFIUM_ARCHIVE_NAME}.tgz
+                    --output ${PDFIUM_RELEASE_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz
+            RESULT_VARIABLE DOWNLOAD_STATUS
+        )
+    endif()
     if(DOWNLOAD_STATUS)
         message(FATAL_ERROR "Could not download PDFium binary for ${ANDROID_ABI}: ${DOWNLOAD_STATUS}")
     endif()"""
