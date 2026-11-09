@@ -20,7 +20,7 @@ final dockThemeProvider = NotifierProvider<DockThemePreference, String>(
 
 class DockSizePreference extends Notifier<double> {
   @override
-  double build() => (ref.watch(sharedPrefsProvider).getDouble('dock_size') ?? 1)
+  double build() => (ref.watch(sharedPrefsProvider).getDouble('dock_size') ?? .9)
       .clamp(.85, 1.25);
   void set(double value) {
     state = value.clamp(.85, 1.25);

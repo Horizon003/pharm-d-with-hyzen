@@ -7,8 +7,6 @@ import 'study_forms.dart';
 import '../home/presentation/home_time_artwork.dart';
 
 const _sky = Color(0xFF49AFFF);
-const _panel = Color(0xFF1A2838);
-const _border = Color(0xFF3B5269);
 
 /// The full Goals screen from the uploaded reference, using real local data.
 class StudyGoalsScreen extends ConsumerStatefulWidget {
@@ -24,9 +22,9 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
     width: double.infinity,
     padding: const EdgeInsets.all(15),
     decoration: BoxDecoration(
-      color: _panel,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: _border),
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
     ),
     child: child,
   );
@@ -40,15 +38,15 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
     builder: (context, constraints) {
       final heading = Row(
         children: [
-          Icon(icon, size: 20, color: _sky),
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               name,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -60,7 +58,10 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
               onPressed: onTap,
               child: Text(
                 action,
-                style: const TextStyle(color: _sky, fontSize: 12),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 12,
+                ),
               ),
             );
       if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
@@ -125,18 +126,15 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
         ? progress.weekSeconds ~/ 60
         : progress.todaySeconds ~/ 60;
 
-    return Theme(
-      data: ThemeData.dark(useMaterial3: true).copyWith(
-        textTheme: Theme.of(context).textTheme.apply(bodyColor: Colors.white, displayColor: Colors.white),
-        colorScheme: const ColorScheme.dark(primary: _sky, surface: _panel),
-      ),
-      child: Scaffold(
-        backgroundColor: const Color(0xFF081521),
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
           toolbarHeight: 60 * scale,
-          backgroundColor: const Color(0xFF081521),
+          backgroundColor: theme.scaffoldBackgroundColor,
           centerTitle: true,
-          title: const Column(
+          title: Column(
             children: [
               Text(
                 'Study Goals',
@@ -144,18 +142,18 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
               ),
               Text(
                 'Set goals, track progress & stay consistent',
-                style: TextStyle(fontSize: 11, color: Colors.white70),
+                style: TextStyle(fontSize: 11, color: muted),
               ),
             ],
           ),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
+            icon: Icon(Icons.arrow_back_rounded),
             onPressed: () =>
                 context.canPop() ? context.pop() : context.go('/home'),
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.calendar_month_outlined),
+              icon: Icon(Icons.calendar_month_outlined),
               onPressed: () => showDatePicker(
                 context: context,
                 initialDate: now,
@@ -172,7 +170,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: _sky),
+                border: Border.all(color: theme.colorScheme.primary),
               ),
               child: Stack(
                 children: [
@@ -186,7 +184,10 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Color(0xF4081727), Color(0x16081727)],
+                          colors: [
+                            theme.scaffoldBackgroundColor.withValues(alpha: .82),
+                            theme.scaffoldBackgroundColor.withValues(alpha: .08),
+                          ],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
@@ -198,7 +199,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           '▣  This Week’s Goal',
                           style: TextStyle(
                             fontSize: 14,
@@ -208,7 +209,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                         const SizedBox(height: 8),
                         Text(
                           '${progress.weekSeconds ~/ 3600}h / ${progress.weeklyGoal ~/ 60}h',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
                           ),
@@ -223,14 +224,14 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                                   value: weeklyPct,
                                   minHeight: 8,
                                   color: _sky,
-                                  backgroundColor: Colors.white24,
+                                  backgroundColor: Theme.of(context).colorScheme.outlineVariant,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Text(
                               '${(weeklyPct * 100).round()}%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -291,37 +292,37 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                           children: [
                             Text(
                               '${goalMinutes ~/ 60}h ${(goalMinutes % 60).toString().padLeft(2, '0')}m',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 23,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            const Text(
+                            Text(
                               'Study Target',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.white70,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Container(width: 1, height: 45, color: Colors.white38),
+                      Container(width: 1, height: 45, color: Theme.of(context).colorScheme.outline),
                       Expanded(
                         child: Column(
                           children: [
                             Text(
                               '$done / $total',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 23,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            const Text(
+                            Text(
                               'Tasks Done',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.white70,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -337,13 +338,13 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                               child: CircularProgressIndicator(
                                 value: selectedPeriod == 1 ? weeklyPct : pct,
                                 color: _sky,
-                                backgroundColor: Colors.white24,
+                                backgroundColor: Theme.of(context).colorScheme.outlineVariant,
                                 strokeWidth: 8,
                               ),
                             ),
                             Text(
                               '${((selectedPeriod == 1 ? weeklyPct : pct) * 100).round()}%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 14,
                               ),
@@ -358,9 +359,9 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       '$actualMinutes minutes recorded',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white70,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -382,14 +383,14 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                       padding: EdgeInsets.all(18),
                       child: Text(
                         'No study tasks yet. Add a real task to start tracking.',
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ),
                   for (final task in todayTasks)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Material(
-                        color: const Color(0xFF26384B),
+                        color: theme.colorScheme.surfaceContainer,
                         borderRadius: BorderRadius.circular(14),
                         child: ListTile(
                           dense: true,
@@ -413,9 +414,9 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                           ),
                           subtitle: Text(
                             '${task.category} · ${task.estimatedMinutes}m · ${task.priority}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              color: Colors.white70,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           trailing: PopupMenuButton<String>(
@@ -489,25 +490,25 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                   ),
                   const SizedBox(height: 6),
                   if (progress.reminders.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.all(12),
                       child: Text(
                         'No reminders scheduled yet.',
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ),
                   for (final reminder in progress.reminders)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 7),
                       child: Material(
-                        color: const Color(0xFF26384B),
+                        color: theme.colorScheme.surfaceContainer,
                         borderRadius: BorderRadius.circular(15),
                         child: ListTile(
-                          leading: const Icon(Icons.menu_book_outlined),
+                          leading: Icon(Icons.menu_book_outlined),
                           title: Text(reminder.title),
                           subtitle: Text(
                             '${reminder.repeat} · ${reminder.due?.hour.toString().padLeft(2, '0') ?? '--'}:${reminder.due?.minute.toString().padLeft(2, '0') ?? '--'}',
-                            style: const TextStyle(fontSize: 11),
+                            style: TextStyle(fontSize: 11),
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -564,8 +565,8 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                               children: [
                                 Text(
                                   week[i] == 0 ? '—' : '${week[i] ~/ 60}m',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     fontSize: 9,
                                   ),
                                 ),
@@ -574,7 +575,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                                   height: 10 + 63 * week[i] / maxWeek,
                                   width: 28,
                                   decoration: BoxDecoration(
-                                    color: week[i] == 0 ? Colors.white24 : _sky,
+                                    color: week[i] == 0 ? Theme.of(context).colorScheme.outlineVariant : _sky,
                                     borderRadius: BorderRadius.circular(7),
                                   ),
                                 ),
@@ -589,7 +590,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                                     'Sat',
                                     'Sun',
                                   ][i],
-                                  style: const TextStyle(fontSize: 10),
+                                  style: TextStyle(fontSize: 10),
                                 ),
                               ],
                             ),
@@ -633,21 +634,21 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
             panel(
               Row(
                 children: [
-                  const Icon(Icons.lightbulb_outline, color: _sky),
+                  Icon(Icons.lightbulb_outline, color: _sky),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Goal Suggestion',
                           style: TextStyle(fontWeight: FontWeight.w800),
                         ),
                         Text(
                           'Try ${suggested}m each day based on your recent week.',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white70,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -656,7 +657,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                   TextButton(
                     onPressed: () =>
                         progress.setGoals(suggested, progress.weeklyGoal),
-                    child: const Text('Apply', style: TextStyle(color: _sky)),
+                    child: Text('Apply', style: TextStyle(color: _sky)),
                   ),
                 ],
               ),
@@ -681,7 +682,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
       await showDialog<void>(
         context: context,
         builder: (dialog) => AlertDialog(
-          title: const Text('Edit study target'),
+          title: Text('Edit study target'),
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
@@ -690,7 +691,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialog),
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
             FilledButton(
               onPressed: () {
@@ -705,7 +706,7 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
                 }
                 Navigator.pop(dialog);
               },
-              child: const Text('Save'),
+              child: Text('Save'),
             ),
           ],
         ),
@@ -733,7 +734,7 @@ class _LinkCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-    color: _panel,
+    color: Theme.of(context).colorScheme.surface,
     borderRadius: BorderRadius.circular(20),
     clipBehavior: Clip.antiAlias,
     child: InkWell(
@@ -745,20 +746,23 @@ class _LinkCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 23, color: _sky),
+                Icon(icon, size: 23, color: Theme.of(context).colorScheme.primary),
                 const Spacer(),
-                const Icon(Icons.chevron_right, color: Colors.white70),
+                Icon(
+                  Icons.chevron_right,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
             const SizedBox(height: 7),
             Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
             ),
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
             ),
           ],
         ),
@@ -778,11 +782,11 @@ class _Insight extends StatelessWidget {
       children: [
         Text(
           value,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
         ),
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: Colors.white70),
+          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
     ),
