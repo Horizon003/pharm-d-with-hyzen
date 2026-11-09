@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../study_progress/study_tracker.dart';
 import '../../study_progress/campus_rank_screen.dart';
 import 'home_time_artwork.dart';
+import 'home_visuals.dart';
 
 const _blue = Color(0xFF174E8B);
 
@@ -33,6 +34,7 @@ class HomeDashboardTop extends ConsumerWidget {
             color: dark ? const Color(0xFF191A1C) : const Color(0xFFF9FBFF),
             borderRadius: BorderRadius.circular(26),
             elevation: dark ? 0 : 2,
+            shadowColor: dark ? Colors.black87 : Colors.black26,
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => context.push('/study-progress'),
@@ -245,6 +247,8 @@ class HomeDashboardTop extends ConsumerWidget {
                       style: FilledButton.styleFrom(
                         foregroundColor: Colors.white,
                         backgroundColor: dark ? const Color(0xFF21588F) : _blue,
+                        elevation: dark ? 2 : 3,
+                        shadowColor: dark ? Colors.black87 : Colors.black38,
                         shape: const StadiumBorder(),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -263,6 +267,8 @@ class HomeDashboardTop extends ConsumerWidget {
                         ? const Color(0xEE152338)
                         : const Color(0xEFFFFFFF),
                     borderRadius: BorderRadius.circular(20),
+                    elevation: dark ? 1 : 2,
+                    shadowColor: dark ? Colors.black87 : Colors.black26,
                     child: InkWell(
                       onTap: () => context.push('/profile'),
                       child: Padding(
@@ -321,12 +327,17 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: dark ? const Color(0xFF1C1D20) : const Color(0xFFF7FAFF),
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      elevation: dark ? 0 : 2,
-      child: InkWell(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: homeDepthShadows(context, blur: 10, y: 4, opacity: .9),
+      ),
+      child: Material(
+        color: dark ? const Color(0xFF1C1D20) : const Color(0xFFF7FAFF),
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        elevation: dark ? 0 : 2,
+        child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 56),
@@ -365,6 +376,7 @@ class _StatTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

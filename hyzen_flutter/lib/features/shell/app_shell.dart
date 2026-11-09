@@ -78,6 +78,10 @@ class AppShell extends ConsumerWidget {
       },
       child: Scaffold(
         extendBody: true,
+        // Keep StatefulNavigationShell in one stable element. Wrapping it in
+        // an AnimatedSwitcher re-parents its internal GlobalKeys during tab
+        // changes; the shell's own route transitions and MainDock animations
+        // provide the lightweight motion without risking that framework crash.
         body: UpdateGate(child: navigationShell),
         bottomNavigationBar: reader || account
             ? null

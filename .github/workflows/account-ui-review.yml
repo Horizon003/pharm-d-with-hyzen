@@ -21,6 +21,8 @@ concurrency:
 jobs:
   validate-preview:
     runs-on: ubuntu-latest
+    env:
+      PUSH_API_BASE: ${{ vars.HYZEN_PUSH_API_BASE }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -43,10 +45,11 @@ jobs:
       - name: Build actual app and account review entrypoint for browser
         working-directory: hyzen_flutter
         run: |
+          test -n "$PUSH_API_BASE"
           version=$(sed -n 's/^version: //p' pubspec.yaml)
-          flutter build web --release --no-pub --base-href /pharm-d-with-hyzen/ --dart-define=HYZEN_APP_VERSION="$version"
+          flutter build web --release --no-pub --base-href /pharm-d-with-hyzen/ --dart-define=HYZEN_APP_VERSION="$version" --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
           mv build/web build/app-web
-          flutter build web --release --pwa-strategy=none --no-pub --target lib/main_account_review.dart --base-href /pharm-d-with-hyzen/ui-review/ --dart-define=HYZEN_APP_VERSION="$version"
+          flutter build web --release --pwa-strategy=none --no-pub --target lib/main_account_review.dart --base-href /pharm-d-with-hyzen/ui-review/ --dart-define=HYZEN_APP_VERSION="$version" --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
           mkdir -p build/app-web/ui-review
           cp -a build/web/. build/app-web/ui-review/
           mkdir -p build/serve/pharm-d-with-hyzen

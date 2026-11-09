@@ -24,9 +24,15 @@ class StudyCloud {
       throw StateError('Study cloud is not configured.');
     }
     final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw StateError('Firebase session token is unavailable.');
+    }
+    final base = studyApiBase.endsWith('/')
+        ? studyApiBase.substring(0, studyApiBase.length - 1)
+        : studyApiBase;
     final response = await client
         .post(
-          Uri.parse('$studyApiBase/$method'),
+          Uri.parse('$base/$method'),
           headers: {
             'Authorization': 'Bearer $token',
             'Content-Type': 'application/json',
@@ -35,13 +41,23 @@ class StudyCloud {
         )
         .timeout(const Duration(seconds: 20));
     if (response.statusCode != 200) {
-      throw StateError('Study cloud unavailable (${response.statusCode}).');
+      throw StateError(
+        'Study cloud unavailable (${response.statusCode}).',
+      );
     }
-    final result = jsonDecode(response.body) as Map<String, dynamic>;
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) {
+      throw StateError('Study cloud returned an invalid response.');
+    }
+    final result = Map<String, dynamic>.from(decoded);
     if (result['error'] != null) {
-      throw StateError('Study cloud rejected this request.');
+      throw StateError(result['error'].toString());
     }
-    return Map<String, dynamic>.from(result['result'] ?? result['data']);
+    final payload = result['result'] ?? result['data'];
+    if (payload is! Map) {
+      throw StateError('Study cloud returned no result.');
+    }
+    return Map<String, dynamic>.from(payload);
   }
 
   void dispose() => client.close();
