@@ -744,8 +744,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  test('text size starts at 13 and restores the chosen numeric size', () async {
-    expect(container.read(textSizeProvider), 13);
+  test('text size starts at 8 and restores the chosen numeric size', () async {
+    expect(container.read(textSizeProvider), 8);
     await container.read(textSizeProvider.notifier).set(16);
     expect(prefs.getInt('app_text_size'), 16);
     container.invalidate(textSizeProvider);

@@ -225,10 +225,13 @@ class CircularNavigationButton extends StatelessWidget {
       tooltip: close ? 'Close account' : 'Back',
       onPressed: onPressed,
       color: Theme.of(context).colorScheme.onSurface,
+      padding: EdgeInsets.zero,
+      alignment: Alignment.center,
+      constraints: const BoxConstraints.tightFor(width: 48, height: 48),
       style: IconButton.styleFrom(backgroundColor: Colors.transparent),
       icon: Icon(
         close ? Icons.close_rounded : Icons.chevron_left_rounded,
-        size: close ? 31 : 36,
+        size: close ? 31 : 30,
       ),
     ),
   );

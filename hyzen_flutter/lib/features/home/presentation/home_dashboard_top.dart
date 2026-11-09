@@ -24,7 +24,7 @@ class HomeDashboardTop extends ConsumerWidget {
         .toDouble();
     final progressColor = dark ? const Color(0xFF79BCFF) : _blue;
     final heroHeight =
-        148 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 4.0);
+        180 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 4.0);
     return Column(
       children: [
         Padding(
@@ -216,12 +216,10 @@ class HomeDashboardTop extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: HomePhaseArtwork(
-            height: heroHeight,
-            builder: (context, phase) => Stack(
+        const SizedBox(height: 6),
+        HomePhaseArtwork(
+          height: heroHeight,
+          builder: (context, phase) => Stack(
               children: [
                 Positioned.fill(
                   child: HomeLandscape(
@@ -231,7 +229,7 @@ class HomeDashboardTop extends ConsumerWidget {
                   ),
                 ),
                 Positioned(
-                  top: 14,
+                  top: 8,
                   left: 12,
                   right: 12,
                   child: Align(
@@ -258,7 +256,7 @@ class HomeDashboardTop extends ConsumerWidget {
                 ),
                 Positioned(
                   left: 12,
-                  bottom: 14,
+                  bottom: 4,
                   child: Material(
                     key: const ValueKey('home-professional-badge'),
                     color: dark
@@ -300,7 +298,6 @@ class HomeDashboardTop extends ConsumerWidget {
                   ),
                 ),
               ],
-            ),
           ),
         ),
       ],

@@ -191,7 +191,7 @@ class HomeScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Transform.translate(
-                          offset: const Offset(0, -18),
+                          offset: const Offset(0, -4),
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(32),
@@ -400,6 +400,18 @@ class _ReferenceCard extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
+          gradient: black
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0D2F5C),
+                    Color(0xFF174E8B),
+                    Color(0xFF91B7D8),
+                  ],
+                  stops: [0, .58, 1],
+                )
+              : null,
           boxShadow: const [
             BoxShadow(
               color: Color(0x22000000),
@@ -410,7 +422,7 @@ class _ReferenceCard extends StatelessWidget {
         ),
         child: Material(
           color: black
-              ? const Color(0xFF174E8B)
+              ? Colors.transparent
               : (Theme.of(context).brightness == Brightness.dark
                     ? const Color(0xFF212123)
                     : Colors.white),
