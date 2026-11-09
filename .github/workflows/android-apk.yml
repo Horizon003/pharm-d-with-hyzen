@@ -51,6 +51,8 @@ jobs:
           chmod 600 android/key.properties
       - run: flutter pub get
         working-directory: hyzen_flutter
+      - name: Patch pdfrx PDFium downloader for transient release failures
+        run: python tools/ci/patch_pdfrx_download.py
       - run: flutter analyze --no-pub
         working-directory: hyzen_flutter
       - run: flutter test --no-pub --reporter expanded
