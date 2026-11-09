@@ -75,7 +75,7 @@ class AppShell extends ConsumerWidget {
           navigationShell.goBranch(0, initialLocation: true);
           await SystemNavigator.pop();
         }
-      ),
+      },
       child: Scaffold(
         extendBody: true,
         body: UpdateGate(
