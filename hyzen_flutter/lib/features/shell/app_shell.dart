@@ -78,35 +78,11 @@ class AppShell extends ConsumerWidget {
       },
       child: Scaffold(
         extendBody: true,
-        body: UpdateGate(
-          child: AnimatedSwitcher(
-            duration: HMotion.fast,
-            reverseDuration: const Duration(milliseconds: 120),
-            switchInCurve: HMotion.curve,
-            switchOutCurve: Curves.easeIn,
-            layoutBuilder: (current, previous) => Stack(
-              fit: StackFit.expand,
-              children: [
-                ...previous,
-                if (current != null) current,
-              ],
-            ),
-            transitionBuilder: (child, animation) {
-              final offset = Tween<Offset>(
-                begin: const Offset(0.018, 0),
-                end: Offset.zero,
-              ).animate(animation);
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(position: offset, child: child),
-              );
-            },
-            child: KeyedSubtree(
-              key: ValueKey(path),
-              child: navigationShell,
-            ),
-          ),
-        ),
+        // Keep StatefulNavigationShell in one stable element. Wrapping it in
+        // an AnimatedSwitcher re-parents its internal GlobalKeys during tab
+        // changes; the shell's own route transitions and MainDock animations
+        // provide the lightweight motion without risking that framework crash.
+        body: UpdateGate(child: navigationShell),
         bottomNavigationBar: reader || account
             ? null
             : MainDock(
