@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Student-uploaded photos remain available. Legacy teal avatar selections
-/// automatically use the existing Hyzen panda instead of deleted image assets.
+/// Use the student photo when available, otherwise show initials.
 class ProfileAvatar extends StatelessWidget {
   const ProfileAvatar({
     super.key,
@@ -14,19 +13,18 @@ class ProfileAvatar extends StatelessWidget {
   final double radius;
   final String fallback;
 
-  static const pandaAsset = 'assets/mascot/mascot_idle_welcome.png';
+  static String? resolveUrl(String? profile, [String? account]) {
+    for (final value in [profile, account]) {
+      final trimmed = value?.trim();
+      final uri = Uri.tryParse(trimmed ?? '');
+      if (uri?.scheme == 'https' && uri!.host.isNotEmpty) return trimmed;
+    }
+    return null;
+  }
 
   static ImageProvider? imageFor(String? value) {
-    if (value != null) {
-      final uri = Uri.tryParse(value);
-      if (uri?.scheme == 'https') return NetworkImage(value);
-    }
-    // Decode the large source PNG at avatar resolution to reduce memory use.
-    return ResizeImage.resizeIfNeeded(
-      160,
-      160,
-      const AssetImage(pandaAsset),
-    );
+    final url = resolveUrl(value);
+    return url == null ? null : NetworkImage(url);
   }
 
   @override
@@ -35,7 +33,7 @@ class ProfileAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: radius,
       foregroundImage: image,
-      onForegroundImageError: (_, __) {},
+      onForegroundImageError: image == null ? null : (_, __) {},
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Text(
         fallback.isEmpty ? 'H' : fallback[0].toUpperCase(),

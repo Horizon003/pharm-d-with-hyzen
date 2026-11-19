@@ -4,9 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'study_tracker.dart';
 import 'study_forms.dart';
-import '../home/presentation/home_time_artwork.dart';
-
-const _sky = Color(0xFF49AFFF);
+import '../../core/theme/tokens.dart';
 
 /// The full Goals screen from the uploaded reference, using real local data.
 class StudyGoalsScreen extends ConsumerStatefulWidget {
@@ -20,10 +18,10 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
 
   Widget panel(Widget child) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(15),
+    padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(24),
       border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
     ),
     child: child,
@@ -44,8 +42,8 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
             child: Text(
               name,
               style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
                 color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
@@ -84,14 +82,23 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
     final progress = ref.watch(studyTrackerProvider);
     final now = DateTime.now();
     final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 3.0);
-    final pct = (progress.todaySeconds / ((selectedPeriod == 2 ? progress.customGoal : progress.dailyGoal) * 60))
-        .clamp(0.0, 1.0)
-        .toDouble();
+    final pct =
+        (progress.todaySeconds /
+                ((selectedPeriod == 2
+                        ? progress.customGoal
+                        : progress.dailyGoal) *
+                    60))
+            .clamp(0.0, 1.0)
+            .toDouble();
     final weeklyPct = (progress.weekSeconds / (progress.weeklyGoal * 60))
         .clamp(0.0, 1.0)
         .toDouble();
-    final todayTasks = progress.tasks.where((task) => task.due == null ||
-      studyDayKey(task.due!) == studyDayKey(now)).toList();
+    final todayTasks = progress.tasks
+        .where(
+          (task) =>
+              task.due == null || studyDayKey(task.due!) == studyDayKey(now),
+        )
+        .toList();
     final done = todayTasks.where((task) => task.done).length;
     final total = todayTasks.length;
     final entries = progress.days;
@@ -129,541 +136,554 @@ class _StudyGoalsScreenState extends ConsumerState<StudyGoalsScreen> {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        toolbarHeight: 60 * scale,
         backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: AppBar(
-          toolbarHeight: 60 * scale,
-          backgroundColor: theme.scaffoldBackgroundColor,
-          centerTitle: true,
-          title: Column(
-            children: [
-              Text(
-                'Study Goals',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-              ),
-              Text(
-                'Set goals, track progress & stay consistent',
-                style: TextStyle(fontSize: 11, color: muted),
-              ),
-            ],
-          ),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded),
-            onPressed: () =>
-                context.canPop() ? context.pop() : context.go('/home'),
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.calendar_month_outlined),
-              onPressed: () => showDatePicker(
-                context: context,
-                initialDate: now,
-                firstDate: DateTime(2020),
-                lastDate: DateTime(now.year + 1),
-              ),
+        centerTitle: true,
+        title: Column(
+          children: [
+            Text(
+              'Study Goals',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              'Set goals, track progress & stay consistent',
+              style: TextStyle(fontSize: 11, color: muted),
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 38),
-          children: [
-            Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: theme.colorScheme.primary),
-              ),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Image.asset(
-                      HomeTimePhase.at(now).asset,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            theme.scaffoldBackgroundColor.withValues(alpha: .82),
-                            theme.scaffoldBackgroundColor.withValues(alpha: .08),
-                          ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '▣  This Week’s Goal',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${progress.weekSeconds ~/ 3600}h / ${progress.weeklyGoal ~/ 60}h',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 9),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: LinearProgressIndicator(
-                                  value: weeklyPct,
-                                  minHeight: 8,
-                                  color: _sky,
-                                  backgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              '${(weeklyPct * 100).round()}%',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/home'),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.calendar_month_outlined),
+            onPressed: () => showDatePicker(
+              context: context,
+              initialDate: now,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(now.year + 1),
             ),
-            const SizedBox(height: 14),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(
-                    value: 0,
-                    icon: Icon(Icons.today),
-                    label: Text('Daily Goal'),
-                  ),
-                  ButtonSegment(
-                    value: 1,
-                    icon: Icon(Icons.date_range),
-                    label: Text('Weekly Goal'),
-                  ),
-                  ButtonSegment(
-                    value: 2,
-                    icon: Icon(Icons.flag_outlined),
-                    label: Text('Custom'),
-                  ),
-                ],
-                selected: {selectedPeriod},
-                showSelectedIcon: false,
-                onSelectionChanged: (value) =>
-                    setState(() => selectedPeriod = value.first),
-              ),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 38),
+        children: [
+          Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
             ),
-            const SizedBox(height: 14),
-            panel(
-              Column(
-                children: [
-                  sectionHeading(
-                    selectedPeriod == 1
-                        ? 'This Week’s Goal'
-                        : selectedPeriod == 2
-                        ? 'Custom Study Goal'
-                        : 'Today’s Goal',
-                    Icons.gps_fixed_rounded,
-                    action: 'Edit Goal',
-                    onTap: () => _editGoals(progress),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Text(
-                              '${goalMinutes ~/ 60}h ${(goalMinutes % 60).toString().padLeft(2, '0')}m',
-                              style: TextStyle(
-                                fontSize: 23,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            Text(
-                              'Study Target',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(width: 1, height: 45, color: Theme.of(context).colorScheme.outline),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Text(
-                              '$done / $total',
-                              style: TextStyle(
-                                fontSize: 23,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            Text(
-                              'Tasks Done',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        width: 67,
-                        height: 67,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox.expand(
-                              child: CircularProgressIndicator(
-                                value: selectedPeriod == 1 ? weeklyPct : pct,
-                                color: _sky,
-                                backgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                                strokeWidth: 8,
-                              ),
-                            ),
-                            Text(
-                              '${((selectedPeriod == 1 ? weeklyPct : pct) * 100).round()}%',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '$actualMinutes minutes recorded',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            panel(
-              Column(
-                children: [
-                  sectionHeading(
-                    'Today’s Tasks',
-                    Icons.check_box_outlined,
-                    action: '+ Add Task',
-                    onTap: () => _addTask(progress),
-                  ),
-                  if (todayTasks.isEmpty)
-                    Padding(
-                      padding: EdgeInsets.all(18),
-                      child: Text(
-                        'No study tasks yet. Add a real task to start tracking.',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                      ),
-                    ),
-                  for (final task in todayTasks)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Material(
-                        color: theme.colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(14),
-                        child: ListTile(
-                          dense: true,
-                          contentPadding: const EdgeInsets.only(
-                            left: 5,
-                            right: 4,
-                          ),
-                          leading: Checkbox(
-                            value: task.done,
-                            onChanged: (_) => progress.toggleTask(task.id),
-                          ),
-                          title: Text(
-                            task.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              decoration: task.done
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${task.category} · ${task.estimatedMinutes}m · ${task.priority}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (selection) {
-                              if (selection == 'edit') {
-                                showStudyForm(
-                                  context,
-                                  progress,
-                                  existing: task,
-                                );
-                              }
-                              if (selection == 'done') {
-                                progress.toggleTask(task.id);
-                              }
-                              if (selection == 'delete') {
-                                progress.deleteTask(task.id);
-                              }
-                            },
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Edit task'),
-                              ),
-                              PopupMenuItem(
-                                value: 'done',
-                                child: Text('Toggle complete'),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Delete task'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
+            child: Stack(
               children: [
-                Expanded(
-                  child: _LinkCard(
-                    icon: Icons.emoji_events_rounded,
-                    title: 'Professional Rank',
-                    value: 'View leaderboard',
-                    onTap: () => context.push('/campus-rank'),
+                Positioned.fill(
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(gradient: hStudyGradient),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _LinkCard(
-                    icon: Icons.local_fire_department_rounded,
-                    title: 'Study Streak',
-                    value: '${progress.currentStreak} Days',
-                    onTap: () => context.push('/study-streak'),
+
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'This Week’s Goal',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${progress.weekSeconds ~/ 3600}h / ${progress.weeklyGoal ~/ 60}h',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: LinearProgressIndicator(
+                                value: weeklyPct,
+                                minHeight: 8,
+                                color: Theme.of(context).colorScheme.primary,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            '${(weeklyPct * 100).round()}%',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            panel(
-              Column(
-                children: [
-                  sectionHeading(
-                    'Reminders',
-                    Icons.notifications_outlined,
-                    action: '+ Add Reminder',
-                    onTap: () => _addReminder(progress),
-                  ),
-                  const SizedBox(height: 6),
-                  if (progress.reminders.isEmpty)
-                    Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text(
-                        'No reminders scheduled yet.',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (index, label) in [
+                'Daily Goal',
+                'Weekly Goal',
+                'Custom',
+              ].indexed)
+                ChoiceChip(
+                  label: Text(label),
+                  selected: selectedPeriod == index,
+                  showCheckmark: false,
+                  onSelected: (_) => setState(() => selectedPeriod = index),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          panel(
+            Column(
+              children: [
+                sectionHeading(
+                  selectedPeriod == 1
+                      ? 'This Week’s Goal'
+                      : selectedPeriod == 2
+                      ? 'Custom Study Goal'
+                      : 'Today’s Goal',
+                  Icons.gps_fixed_rounded,
+                  action: 'Edit Goal',
+                  onTap: () => _editGoals(progress),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            '${goalMinutes ~/ 60}h ${(goalMinutes % 60).toString().padLeft(2, '0')}m',
+                            style: TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Study Target',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  for (final reminder in progress.reminders)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 7),
-                      child: Material(
-                        color: theme.colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(15),
-                        child: ListTile(
-                          leading: Icon(Icons.menu_book_outlined),
-                          title: Text(reminder.title),
-                          subtitle: Text(
-                            '${reminder.repeat} · ${reminder.due?.hour.toString().padLeft(2, '0') ?? '--'}:${reminder.due?.minute.toString().padLeft(2, '0') ?? '--'}',
-                            style: TextStyle(fontSize: 11),
+                    Container(
+                      width: 1,
+                      height: 45,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            '$done / $total',
+                            style: TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          Text(
+                            'Tasks Done',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 67,
+                      height: 67,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox.expand(
+                            child: CircularProgressIndicator(
+                              value: selectedPeriod == 1 ? weeklyPct : pct,
+                              color: Theme.of(context).colorScheme.primary,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                              strokeWidth: 8,
+                            ),
+                          ),
+                          Text(
+                            '${((selectedPeriod == 1 ? weeklyPct : pct) * 100).round()}%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '$actualMinutes minutes recorded',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          panel(
+            Column(
+              children: [
+                sectionHeading(
+                  'Today’s Tasks',
+                  Icons.check_box_outlined,
+                  action: '+ Add Task',
+                  onTap: () => _addTask(progress),
+                ),
+                if (todayTasks.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text(
+                      'No study tasks yet. Add a real task to start tracking.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                for (final task in todayTasks)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Material(
+                      color: theme.colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(14),
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.only(
+                          left: 5,
+                          right: 4,
+                        ),
+                        leading: Checkbox(
+                          value: task.done,
+                          onChanged: (_) => progress.toggleTask(task.id),
+                        ),
+                        title: Text(
+                          task.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            decoration: task.done
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${task.category} · ${task.estimatedMinutes}m · ${task.priority}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (selection) {
+                            if (selection == 'edit') {
+                              showStudyForm(context, progress, existing: task);
+                            }
+                            if (selection == 'done') {
+                              progress.toggleTask(task.id);
+                            }
+                            if (selection == 'delete') {
+                              progress.deleteTask(task.id);
+                            }
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit task'),
+                            ),
+                            PopupMenuItem(
+                              value: 'done',
+                              child: Text('Toggle complete'),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete task'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _LinkCard(
+                  icon: Icons.emoji_events_rounded,
+                  title: 'Professional Rank',
+                  value: 'View leaderboard',
+                  onTap: () => context.push('/campus-rank'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _LinkCard(
+                  icon: Icons.local_fire_department_rounded,
+                  title: 'Study Streak',
+                  value: '${progress.currentStreak} Days',
+                  onTap: () => context.push('/study-streak'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          panel(
+            Column(
+              children: [
+                sectionHeading(
+                  'Reminders',
+                  Icons.notifications_outlined,
+                  action: '+ Add Reminder',
+                  onTap: () => _addReminder(progress),
+                ),
+                const SizedBox(height: 6),
+                if (progress.reminders.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text(
+                      'No reminders scheduled yet.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                for (final reminder in progress.reminders)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 7),
+                    child: Material(
+                      color: theme.colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(15),
+                      child: ListTile(
+                        leading: Icon(Icons.menu_book_outlined),
+                        title: Text(reminder.title),
+                        subtitle: Text(
+                          '${reminder.repeat} · ${reminder.due?.hour.toString().padLeft(2, '0') ?? '--'}:${reminder.due?.minute.toString().padLeft(2, '0') ?? '--'}',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Switch(
+                              value: reminder.enabled,
+                              onChanged: (_) =>
+                                  progress.toggleReminder(reminder.id),
+                            ),
+                            PopupMenuButton<String>(
+                              onSelected: (v) {
+                                if (v == 'edit') {
+                                  showStudyForm(
+                                    context,
+                                    progress,
+                                    reminder: true,
+                                    existing: reminder,
+                                  );
+                                }
+                                if (v == 'delete') {
+                                  progress.deleteTask(reminder.id);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit reminder'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete reminder'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          panel(
+            Column(
+              children: [
+                sectionHeading(
+                  'Weekly Progress',
+                  Icons.bar_chart_rounded,
+                  action: 'See Details',
+                  onTap: () => context.push('/study-streak'),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 112 * scale,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      for (var i = 0; i < 7; i++)
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              Switch(
-                                value: reminder.enabled,
-                                onChanged: (_) =>
-                                    progress.toggleReminder(reminder.id),
+                              Text(
+                                week[i] == 0 ? '—' : '${week[i] ~/ 60}m',
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                  fontSize: 9,
+                                ),
                               ),
-                              PopupMenuButton<String>(
-                                onSelected: (v) {
-                                  if (v == 'edit') { showStudyForm(context, progress, reminder: true, existing: reminder); }
-                                  if (v == 'delete') {
-                                    progress.deleteTask(reminder.id);
-                                  }
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(value: 'edit', child: Text('Edit reminder')),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Delete reminder'),
-                                  ),
-                                ],
+                              const SizedBox(height: 4),
+                              Container(
+                                height: 10 + 63 * week[i] / maxWeek,
+                                width: 28,
+                                decoration: BoxDecoration(
+                                  color: week[i] == 0
+                                      ? Theme.of(
+                                          context,
+                                        ).colorScheme.outlineVariant
+                                      : Theme.of(context).colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(7),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                const [
+                                  'Mon',
+                                  'Tue',
+                                  'Wed',
+                                  'Thu',
+                                  'Fri',
+                                  'Sat',
+                                  'Sun',
+                                ][i],
+                                style: TextStyle(fontSize: 10),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            panel(
-              Column(
-                children: [
-                  sectionHeading(
-                    'Weekly Progress',
-                    Icons.bar_chart_rounded,
-                    action: 'See Details',
-                    onTap: () => context.push('/study-streak'),
+                    ],
                   ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    height: 112 * scale,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        for (var i = 0; i < 7; i++)
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Text(
-                                  week[i] == 0 ? '—' : '${week[i] ~/ 60}m',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    fontSize: 9,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  height: 10 + 63 * week[i] / maxWeek,
-                                  width: 28,
-                                  decoration: BoxDecoration(
-                                    color: week[i] == 0 ? Theme.of(context).colorScheme.outlineVariant : _sky,
-                                    borderRadius: BorderRadius.circular(7),
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  const [
-                                    'Mon',
-                                    'Tue',
-                                    'Wed',
-                                    'Thu',
-                                    'Fri',
-                                    'Sat',
-                                    'Sun',
-                                  ][i],
-                                  style: TextStyle(fontSize: 10),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 14),
-            panel(
-              Column(
-                children: [
-                  sectionHeading('Insights', Icons.insights_outlined),
-                  Wrap(
-                    spacing: 15,
-                    runSpacing: 8,
+          ),
+          const SizedBox(height: 14),
+          panel(
+            Column(
+              children: [
+                sectionHeading('Insights', Icons.insights_outlined),
+                Wrap(
+                  spacing: 15,
+                  runSpacing: 8,
+                  children: [
+                    _Insight(
+                      'Total study',
+                      '${progress.days.values.fold<int>(0, (a, b) => a + b) ~/ 60}m',
+                    ),
+                    _Insight(
+                      'Daily average',
+                      '${(progress.weekSeconds ~/ 60) ~/ now.weekday}m',
+                    ),
+                    _Insight('Active days', '$daysStudied / 7'),
+                    _Insight(
+                      'Vs last week',
+                      changePercent == null
+                          ? 'No baseline'
+                          : '${changePercent > 0 ? '+' : ''}$changePercent%',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          panel(
+            Row(
+              children: [
+                Icon(
+                  Icons.lightbulb_outline,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _Insight(
-                        'Total study',
-                        '${progress.days.values.fold<int>(0, (a, b) => a + b) ~/ 60}m',
+                      Text(
+                        'Goal Suggestion',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      _Insight(
-                        'Daily average',
-                        '${(progress.weekSeconds ~/ 60) ~/ now.weekday}m',
-                      ),
-                      _Insight('Active days', '$daysStudied / 7'),
-                      _Insight(
-                        'Vs last week',
-                        changePercent == null
-                            ? 'No baseline'
-                            : '${changePercent > 0 ? '+' : ''}$changePercent%',
+                      Text(
+                        'Try ${suggested}m each day based on your recent week.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            panel(
-              Row(
-                children: [
-                  Icon(Icons.lightbulb_outline, color: _sky),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Goal Suggestion',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        Text(
-                          'Try ${suggested}m each day based on your recent week.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                ),
+                TextButton(
+                  onPressed: () =>
+                      progress.setGoals(suggested, progress.weeklyGoal),
+                  child: Text(
+                    'Apply',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () =>
-                        progress.setGoals(suggested, progress.weeklyGoal),
-                    child: Text('Apply', style: TextStyle(color: _sky)),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -734,7 +754,7 @@ class _LinkCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: Theme.of(context).colorScheme.surface,
-    borderRadius: BorderRadius.circular(20),
+    borderRadius: BorderRadius.circular(24),
     clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: onTap,
@@ -745,7 +765,11 @@ class _LinkCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 23, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  icon,
+                  size: 23,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const Spacer(),
                 Icon(
                   Icons.chevron_right,
@@ -756,12 +780,15 @@ class _LinkCard extends StatelessWidget {
             const SizedBox(height: 7),
             Text(
               title,
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
             const SizedBox(height: 4),
             Text(
               value,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -781,11 +808,14 @@ class _Insight extends StatelessWidget {
       children: [
         Text(
           value,
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         Text(
           label,
-          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     ),

@@ -1,0 +1,11 @@
+- group:
+  - button "Back"
+  - text: PHARM D WITH HYZEN Your study space Welcome back Your notes, focus and progress. All in one familiar place. Log in to your account
+  - textbox "Email"
+  - textbox "Password"
+  - button "Show password"
+  - button "Forgot password?"
+  - button "Log in":
+    - button "Log in"
+  - text: New to Hyzen?
+  - button "Create account"

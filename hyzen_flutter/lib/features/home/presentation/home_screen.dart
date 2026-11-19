@@ -1,36 +1,36 @@
+import '../../../core/widgets/reward_art.dart';
+import '../../study_progress/reward_controller.dart';
+import '../../../core/widgets/polish_ui.dart';
+import '../../search/presentation/home_search.dart';
+import '../../notifications/notifications_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../../app/providers.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/common.dart';
-import '../../../core/widgets/main_dock.dart';
 import '../../../core/widgets/surfaces.dart';
-import '../../downloads/domain/download_record.dart';
-import 'home_background.dart';
-import 'home_dashboard_top.dart';
-import 'home_time_artwork.dart';
-import 'home_visuals.dart';
-import 'announcement_carousel.dart';
-import '../../../core/widgets/ui_kit.dart';
 import '../../../core/widgets/profile_avatar.dart';
-import '../../notifications/notifications_screen.dart';
+import '../../../core/widgets/ui_kit.dart';
 import '../../academics/domain/models.dart';
 import '../../academics/presentation/library_screens.dart';
 import '../../academics/presentation/discovery_widgets.dart';
 import '../../content/data/content_providers.dart';
-import '../../shell/app_shell.dart';
-import '../../auth/presentation/auth_controllers.dart';
-import '../data/recent_controller.dart';
 import '../../downloads/data/downloads_controller.dart';
+import '../../downloads/domain/download_record.dart';
+import '../../shell/app_shell.dart';
+import '../../study_progress/study_tracker.dart';
+import '../../study_progress/campus_rank_screen.dart';
+import '../data/recent_controller.dart';
+import 'home_dashboard_top.dart';
+import 'announcement_carousel.dart';
 
-// The reference artwork is decorative; all controls below are live Flutter UI.
 final homeClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 String homeGreeting(DateTime time) {
-  final greeting = HomeTimePhase.at(time).greeting;
-  return greeting[0] + greeting.substring(1).toLowerCase();
+  if (time.hour < 5 || time.hour >= 23) return 'Good night';
+  if (time.hour < 12) return 'Good morning';
+  if (time.hour < 16) return 'Good afternoon';
+  return 'Good evening';
 }
 
 class HomeScreen extends ConsumerWidget {
@@ -39,522 +39,356 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider).valueOrNull;
     final user = ref.watch(authStateProvider).valueOrNull;
-    final settings = ref.watch(siteSettingsProvider);
-    final recent = ref.watch(recentProvider);
-    final ann = ref.watch(boolPrefProvider('pref_announcements'))
-        ? ref.watch(announcementSlidesProvider)
-        : ref.watch(announcementSlidesProvider).take(0).toList();
     final name =
         profile?.firstName ?? user?.displayName?.split(' ').first ?? 'there';
-    final fresh = ref.watch(lastCreatedProfileProvider)?.uid == user?.uid;
-    final counts = ref.watch(
-      downloadsProvider.select(
-        (map) => (
-          map.values
-              .where((r) => r.status == DownloadStatus.downloading)
-              .length,
-          map.values.where((r) => r.isAvailableOffline).length,
-          map.values.where((r) => r.isAvailableOffline && r.unopened).length,
-        ),
-      ),
-    );
-    final scale = MediaQuery.textScalerOf(context).scale(1);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final badges = [
-      if (counts.$1 > 0) '${counts.$1} Downloading',
-      if (counts.$2 > 0) '${counts.$2} Saved',
-      if (counts.$3 > 0) '${counts.$3} New',
+    final recent = ref.watch(recentProvider);
+    final slides = ref.watch(announcementSlidesProvider);
+    final downloads = ref.watch(downloadsProvider).values;
+    final saved = downloads.where((r) => r.isAvailableOffline).length;
+    final fresh = downloads
+        .where((r) => r.isAvailableOffline && r.unopened)
+        .length;
+    final active = downloads
+        .where((r) => r.status == DownloadStatus.downloading)
+        .length;
+    final downloadLabels = [
+      if (saved > 0) '$saved Saved',
+      if (fresh > 0) '$fresh New',
+      if (active > 0) '$active Downloading',
     ];
-    Widget grid(List<Widget> children, double height) => GridView(
-      shrinkWrap: true,
-      primary: false,
-      padding: EdgeInsets.zero,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: scale > 1.3 ? 1 : 2,
-        mainAxisExtent: height * scale.clamp(1, 2),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+    return TabPage(
+      title: 'Home',
+      headerExtent: 88 + MediaQuery.textScalerOf(context).scale(12),
+      integratedHeader: true,
+      header: _HomeHeader(
+        name: name,
+        photoUrl: ProfileAvatar.resolveUrl(profile?.photoUrl, user?.photoURL),
       ),
-      children: children,
-    );
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-      child: TabPage(
-        title: 'PHARM D',
-        integratedHeader: true,
-        headerTheme: Theme.of(context),
-        header: ColoredBox(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
+      onRefresh: () => refreshContent(ref, [
+        'pw_settings',
+        'pw_announcement',
+        ...LibraryKind.values.map((k) => k.storageKey),
+      ]),
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverList.list(
+            children: [
+              HomeDashboardTop(year: profile?.professionalYear),
+              const SizedBox(height: 16),
+              const HomeSearch(),
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  Tooltip(
-                    message: 'Profile & settings',
-                    child: InkWell(
-                      onTap: () => showAccountMenu(context),
-                      customBorder: const CircleBorder(),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.outline,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: ClipOval(
-                          child: profile?.photoUrl != null
-                              ? ProfileAvatar(
-                                  photoUrl: profile!.photoUrl,
-                                  radius: 20,
-                                  fallback: name,
-                                )
-                              : Image.asset(
-                                  'assets/brand/hyzen_icon_square.png',
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (scale <= 1.3)
-                          Text(
-                            homeGreeting(
-                              ref.watch(homePhaseClockProvider).value,
-                            ).toUpperCase(),
-                            key: const ValueKey('home-greeting'),
-                            style: TextStyle(
-                              fontSize: 10,
-                              letterSpacing: .7,
-                              fontWeight: FontWeight.w700,
-                              color: dark
-                                  ? Colors.white70
-                                  : const Color(0xFF436187),
-                            ),
-                          ),
-                        Tooltip(
-                          message: name,
-                          child: Text(
-                            fresh ? 'Welcome, $name' : 'Welcome back, $name',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: dark
-                                  ? Colors.white
-                                  : const Color(0xFF0C1933),
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Your plan',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w500),
                     ),
                   ),
-                  const NotificationBell(),
+                  TextButton(
+                    key: const ValueKey('home-professional-badge'),
+                    onPressed: () => context.push('/profile'),
+                    child: Text(
+                      profile?.professionalYear == null
+                          ? 'Your year'
+                          : 'Year ${profile!.professionalYear}',
+                    ),
+                  ),
                 ],
               ),
-            ),
+              const SizedBox(height: 4),
+              const _PlanCards(),
+              const SizedBox(height: 14),
+              const _StudyStats(),
+              if (downloadLabels.isNotEmpty)
+                Wrap(
+                  spacing: 4,
+                  children: [
+                    for (final label in downloadLabels)
+                      TextButton(
+                        onPressed: () => context.go('/downloads'),
+                        child: Text(
+                          label,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                  ],
+                ),
+              if (ref.watch(boolPrefProvider('pref_announcements')) &&
+                  slides.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                AnnouncementCarousel(slides: slides),
+                const SizedBox(height: 8),
+              ],
+              if (recent.isNotEmpty) ...[
+                SectionHeader(
+                  title: 'Last lessons',
+                  action: 'Clear',
+                  onAction: () async {
+                    if (await confirmDialog(
+                      context,
+                      title: 'Clear recent history?',
+                      message:
+                          'Only recently opened history will be cleared. Your files stay saved.',
+                      confirm: 'Clear history',
+                    )) {
+                      await ref.read(recentProvider.notifier).clear();
+                    }
+                  },
+                ),
+                for (final item in recent.take(3))
+                  FileTile(
+                    file: item.file,
+                    color: HColors.notes,
+                    compact: true,
+                  ),
+              ],
+              const SizedBox(height: 14),
+              const SubjectDiscovery(compact: true),
+              const SizedBox(height: 16),
+            ],
           ),
         ),
-        homeBackground: (child) => HomeAtmosphere(child: child),
-        onRefresh: () => refreshContent(ref, [
-          'pw_settings',
-          'pw_announcement',
-          ...LibraryKind.values.map((k) => k.storageKey),
-        ]),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                HomeDashboardTop(year: profile?.professionalYear),
-                HomeAtmosphere(
-                  content: true,
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      0,
-                      16,
-                      8 + MainDock.contentInset(context),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Transform.translate(
-                          offset: const Offset(0, -4),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(32),
-                              boxShadow: homeDepthShadows(
-                                context,
-                                blur: 18,
-                                y: 8,
-                              ),
-                            ),
-                            child: Material(
-                              color: Theme.of(context).colorScheme.surface,
-                              borderRadius: BorderRadius.circular(32),
-                              clipBehavior: Clip.antiAlias,
-                              child: InkWell(
-                                onTap: () => context.go('/search', extra: true),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.search,
-                                        color: Theme.of(context).colorScheme.onSurface,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          'Search subjects, topics or files',
-                                          style: TextStyle(
-                                            color: Theme.of(context).colorScheme.onSurface,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(tooltip: 'Scan a document',
-                                        onPressed: () => context.push('/create-pdf'),
-                                        icon: Icon(
-                                          Icons.document_scanner_outlined,
-                                          color: Theme.of(context).colorScheme.onSurface,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (ann.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: AnnouncementCarousel(slides: ann),
-                          ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Quick Access',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => context.go('/study'),
-                              child: const Text('See All'),
-                            ),
-                          ],
-                        ),
-                        const Gap(10),
-                        grid([
-                          _ReferenceCard(
-                            title: 'Study Library',
-                            subtitle: 'Your academic library',
-                            icon: Icons.menu_book_outlined,
-                            art: 'books',
-                            black: true,
-                            onTap: () => context.go('/study'),
-                          ),
-                          _ReferenceCard(
-                            title: 'Office Workspace',
-                            subtitle: 'Scan, read & create',
-                            icon: Icons.document_scanner_outlined,
-                            art: 'papers',
-                            onTap: () => context.go('/pdf-studio'),
-                          ),
-                        ], 116),
-                        const Gap(14),
-                        Text(
-                          'Others',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                        const Gap(8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _CompactHomeLink(
-                                label: settings.sectionEnabled('shop')
-                                    ? 'Shop'
-                                    : 'Search',
-                                icon: settings.sectionEnabled('shop')
-                                    ? Icons.storefront_outlined
-                                    : Icons.search,
-                                onTap: () => settings.sectionEnabled('shop')
-                                    ? context.go('/shop')
-                                    : context.go('/search', extra: true),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _CompactHomeLink(
-                                label: 'Downloads',
-                                icon: Icons.file_download_outlined,
-                                badges: badges,
-                                onTap: () => context.go('/downloads'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _CompactHomeLink(
-                                label: 'Study Plan',
-                                icon: Icons.calendar_month_outlined,
-                                onTap: () => context.push('/study-goals'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _CompactHomeLink(
-                                label: 'My Progress',
-                                icon: Icons.bar_chart_rounded,
-                                onTap: () => context.push('/study-progress'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Gap(20),
-                        if (recent.isNotEmpty) ...[
-                          const Gap(24),
-                          SectionHeader(
-                            title: 'Continue studying',
-                            action: 'Clear',
-                            onAction: () async {
-                              if (await confirmDialog(
-                                context,
-                                title: 'Clear recent history?',
-                                message:
-                                    'Only the list of recently opened files will be cleared. Your downloads and original documents stay saved.',
-                                confirm: 'Clear history',
-                              )) {
-                                await ref.read(recentProvider.notifier).clear();
-                              }
-                            },
-                          ),
-                          for (final item in recent.take(3))
-                            FileTile(
-                              file: item.file,
-                              color: Theme.of(context).colorScheme.primary,
-                              compact: true,
-                            ),
-                        ],
-                        const Gap(16),
-                        const SubjectDiscovery(compact: true),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
 
-class _ReferenceCard extends StatelessWidget {
-  const _ReferenceCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.art,
-    required this.onTap,
-    this.black = false,
-  });
-  final String title, subtitle, art;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool black;
+class _PlanCards extends StatelessWidget {
+  const _PlanCards();
   @override
   Widget build(BuildContext context) {
-    final ink = black || Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-    return Semantics(
-      button: true,
-      label: title,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-          gradient: black
-              ? const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF0D2F5C),
-                    Color(0xFF174E8B),
-                    Color(0xFF91B7D8),
-                  ],
-                  stops: [0, .58, 1],
-                )
-              : null,
-          boxShadow: homeDepthShadows(context, blur: 16, y: 8),
+    final t = Theme.of(context);
+    final large = MediaQuery.textScalerOf(context).scale(22) > 22 * 1.3;
+    Widget planCard({required bool library}) {
+      final title = library ? 'Study library' : 'Office workspace';
+      final semantic = library ? 'Study Library' : 'Office Workspace';
+      final route = library ? '/study' : '/pdf-studio';
+      final color = library ? HColors.apricot : HColors.blue;
+      return HCard(
+        color: color,
+        radius: 24,
+        shadow: false,
+        semanticLabel: semantic,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: library
+              ? [const Color(0xffffc47c), const Color(0xffffe4cf)]
+              : [const Color(0xffa9c9f4), const Color(0xffe0e8f9)],
         ),
-        child: Material(
-          color: black
-              ? Colors.transparent
-              : (Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFF212123)
-                    : Colors.white),
-          borderRadius: BorderRadius.circular(26),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -6,
-                  bottom: -8,
-                  child: ExcludeSemantics(
-                    child: Image.asset(
-                      'assets/home/$art.webp',
-                      width: 58,
-                      height: 60,
-                      fit: BoxFit.contain,
-                    ),
+        padding: const EdgeInsets.all(14),
+        onTap: () => context.go(route),
+        onLongPress: () => showCardPreview(
+          context,
+          title: semantic,
+          description: library
+              ? 'Explore professional-year notes, practice MCQs, past papers and guide books. Continue with your subjects at your own pace.'
+              : 'Scan pages, import PDFs, crop and organise documents, annotate files and search recognised text.',
+          asset: library ? 'action-notes' : 'action-scan',
+          color: color,
+          onOpen: () => context.go(route),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _PlanTag(library ? 'Learn' : 'Create'),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: t.textTheme.headlineSmall?.copyWith(
+                fontSize: 19,
+                height: 1.18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              library ? 'Notes, MCQs & past papers' : 'Scan · PDF · Documents',
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: RewardArt(
+                library ? 0 : 1,
+                size: large
+                    ? 116
+                    : library
+                    ? 140
+                    : 112,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget library() => planCard(library: true);
+    Widget office() => planCard(library: false);
+    Widget goals() => const _HomeQuickActions();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (large || constraints.maxWidth < 340) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              library(),
+              const SizedBox(height: 10),
+              office(),
+              const SizedBox(height: 10),
+              goals(),
+            ],
+          );
+        }
+
+        // Reserve space for the three 48dp controls in the side column.
+        final rightWidth = (constraints.maxWidth * .45).clamp(156.0, 260.0);
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: library()),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: rightWidth,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [office(), const SizedBox(height: 10), goals()],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _HomeQuickActions extends StatelessWidget {
+  const _HomeQuickActions();
+  @override
+  Widget build(BuildContext context) => Material(
+    color: HColors.pink,
+    borderRadius: BorderRadius.circular(24),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          for (final action in const [
+            ('notes', 'Open notes', '/study/notes'),
+            ('scan', 'Scan a document', '/create-pdf?source=camera'),
+            ('downloads', 'Open downloads', '/downloads'),
+          ])
+            IconButton(
+              key: ValueKey('home-action-${action.$1}'),
+              tooltip: action.$2,
+              onPressed: () => context.push(action.$3),
+              style: IconButton.styleFrom(
+                minimumSize: const Size(48, 48),
+                maximumSize: const Size(48, 48),
+                padding: const EdgeInsets.all(4),
+                tapTargetSize: MaterialTapTargetSize.padded,
+              ),
+              icon: Ink(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Color(0xB3FFFFFF),
+                  shape: BoxShape.circle,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Image.asset(
+                    'assets/reference/action-${action.$1}.png',
+                    cacheWidth: 120,
+                    excludeFromSemantics: true,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _PlanTag extends StatelessWidget {
+  const _PlanTag(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: .35),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      child: Text(text, style: const TextStyle(fontSize: 10)),
+    ),
+  );
+}
+
+class _StudyStats extends ConsumerWidget {
+  const _StudyStats();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = ref.watch(studyTrackerProvider);
+    final board = ref.watch(campusBoardProvider('week')).valueOrNull;
+    final entries = [
+      (
+        '${ref.watch(rewardProvider).streak} days',
+        'Streak',
+        '/study-streak',
+        'icon-streak',
+      ),
+      (
+        '${p.weekSeconds ~/ 3600}h ${(p.weekSeconds ~/ 60) % 60}m',
+        'Time spent',
+        '/study-progress',
+        'icon-time',
+      ),
+      (
+        board?.mine?.rank == null ? '—' : '#${board!.mine!.rank}',
+        'Prof. Rank',
+        '/campus-rank',
+        'icon-rank',
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, c) {
+        final columns = MediaQuery.textScalerOf(context).scale(1) > 1.5 ? 1 : 3;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final e in entries)
+              SizedBox(
+                width: (c.maxWidth - (columns - 1) * 8) / columns,
+                child: HCard(
+                  radius: 22,
+                  outlineColor: const Color(0xFFD2CADF),
+                  shadow: false,
+                  onTap: () => context.push(e.$3),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(icon, color: ink, size: 25),
-                          const Spacer(),
-                          Icon(Icons.arrow_outward, color: ink, size: 17),
-                        ],
-                      ),
-                      const Spacer(),
+                      HAssetIcon(e.$4, size: 30),
+                      const SizedBox(height: 6),
                       Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: ink,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          height: 1.2,
-                        ),
+                        e.$1,
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      const Gap(4),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 56),
-                        child: Text(
-                          subtitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: ink.withValues(alpha: .72),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
+                      const SizedBox(height: 2),
+                      Text(e.$2, style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactHomeLink extends StatelessWidget {
-  const _CompactHomeLink({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    this.badges = const [],
-  });
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final List<String> badges;
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(17),
-        boxShadow: homeDepthShadows(context, blur: 11, y: 5, opacity: .85),
-      ),
-      child: Material(
-        color: Theme.of(context).colorScheme.surface,
-        elevation: dark ? 0 : 2,
-        borderRadius: BorderRadius.circular(17),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height:
-              ((68 + 12 * badges.length) *
-                      MediaQuery.textScalerOf(context).scale(1))
-                  .clamp(68.0, 260.0),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 25,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                for (final badge in badges)
-                  Text(
-                    badge,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        ),
-      ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -580,13 +414,141 @@ class LegalScreen extends StatelessWidget {
             child: PanelBlock(
               child: Text(
                 'The official $title has not been supplied yet. The Hyzen owner must provide the final text before public release.\n\n'
-                'Summary of current practice: your password is handled only by Firebase Authentication; your profile '
+                'Summary of current practice: your sign-in details are protected by the account service; your profile '
                 '(name, mobile, city, professional year, institution) is stored in your private students record; '
                 'offline files stay on your device.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeHeader extends ConsumerStatefulWidget {
+  const _HomeHeader({required this.name, this.photoUrl});
+  final String name;
+  final String? photoUrl;
+  @override
+  ConsumerState<_HomeHeader> createState() => _HomeHeaderState();
+}
+
+class _HomeHeaderState extends ConsumerState<_HomeHeader> {
+  bool showPoints = true;
+  @override
+  Widget build(BuildContext context) {
+    final reward = ref.watch(rewardProvider);
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: 12,
+              left: 96,
+              right: 96,
+              child: Text(
+                'Hello, ${widget.name}',
+                key: const ValueKey('home-greeting'),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                SizedBox(
+                  width: 88,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Tooltip(
+                        message: 'Profile & settings',
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => showAccountMenu(context),
+                          child: SizedBox.square(
+                            dimension: 48,
+                            child: Center(
+                              child: ProfileAvatar(
+                                photoUrl: widget.photoUrl,
+                                radius: 21,
+                                fallback: widget.name,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (reward.badges.isNotEmpty)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (final day in reward.badges.take(3))
+                              RewardArt(
+                                10 + rewardMilestones.indexOf(day),
+                                size: 16,
+                              ),
+                          ],
+                        ),
+                      if (showPoints)
+                        InkWell(
+                          onTap: () => setState(() => showPoints = false),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfff4e3d8),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'My Points ${reward.points}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Row(
+                  children: [
+                    HGlassButton(
+                      icon: 'icon-search',
+                      label: 'Search academic resources',
+                      onTap: () => context.go('/search', extra: true),
+                    ),
+                    HGlassButton(
+                      icon: 'icon-bell',
+                      label: 'Notifications',
+                      badge: ref
+                          .watch(notificationsProvider)
+                          .where((m) => m['read'] != true)
+                          .length,
+                      onTap: () => context.push('/notifications'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

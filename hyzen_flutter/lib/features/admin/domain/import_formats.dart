@@ -12,21 +12,16 @@ String dataFileCsv(String name, Uint8List bytes) {
   final ext = name.toLowerCase().split('.').last;
   if (ext == 'csv') return utf8.decode(bytes);
   if (ext == 'json') {
-    final decoded = jsonDecode(utf8.decode(bytes));
-    final rows = decoded is List
-        ? decoded
-        : decoded is Map
-        ? decoded['rows']
-        : null;
-    if (rows is! List || rows.isEmpty || rows.any((r) => r is! Map)) {
+    final decoded = jsonDecode(
+      utf8.decode(bytes).replaceFirst(RegExp(r'^\uFEFF'), ''),
+    );
+    final maps = resourceJsonRows(decoded);
+    if (maps.isEmpty) {
       throw FriendlyException(
-        'Import JSON should be an array of resource rows or an object with a rows array. Use Data Manager for a full backup.',
+        'No resource rows found. Use Data Manager for full backups.',
       );
     }
-    final maps = rows.cast<Map>();
-    final headers = <String>{
-      for (final row in maps) ...row.keys.map((k) => '$k'),
-    }.toList();
+    final headers = <String>{for (final row in maps) ...row.keys}.toList();
     return tableCsv([
       headers,
       for (final row in maps) [for (final key in headers) row[key]],
@@ -67,7 +62,31 @@ String dataFileCsv(String name, Uint8List bytes) {
   if (sheet.isEmpty) {
     throw FriendlyException('Workbook has no readable worksheets.');
   }
+  final sheetNames = <String, String>{};
+  final rels = {
+    for (final rel
+        in document(
+              'xl/_rels/workbook.xml.rels',
+            )?.findAllElements('Relationship') ??
+            <XmlElement>[])
+      rel.getAttribute('Id'): rel.getAttribute('Target'),
+  };
+  for (final sh
+      in document('xl/workbook.xml')?.findAllElements('sheet') ??
+          <XmlElement>[]) {
+    final rid = sh.attributes
+        .where((a) => a.name.local == 'id')
+        .firstOrNull
+        ?.value;
+    final target = rels[rid];
+    if (target != null) {
+      sheetNames[target.startsWith('/') ? target.substring(1) : 'xl/$target'] =
+          sh.getAttribute('name') ?? '';
+    }
+  }
   final result = <List<Object?>>[];
+  final mergedHeaders = <String>[];
+  final mergedRows = <Map<String, Object?>>[];
   for (final file in sheet) {
     final rows = <List<Object?>>[];
     final doc = document(file.name)!;
@@ -90,7 +109,9 @@ String dataFileCsv(String name, Uint8List bytes) {
         final raw = cell.getElement('v')?.innerText ?? '';
         final type = cell.getAttribute('t');
         final value = type == 's'
-            ? (int.tryParse(raw) != null && int.parse(raw) < shared.length
+            ? (int.tryParse(raw) != null &&
+                      int.parse(raw) >= 0 &&
+                      int.parse(raw) < shared.length
                   ? shared[int.parse(raw)]
                   : '')
             : type == 'inlineStr'
@@ -106,17 +127,113 @@ String dataFileCsv(String name, Uint8List bytes) {
       }
     }
     if (rows.isEmpty) continue;
-    if (result.isEmpty) {
-      result.addAll(rows);
-    } else {
-      if (rows.first.map((v) => canonicalHeader('$v')).join('|') !=
-          result.first.map((v) => canonicalHeader('$v')).join('|')) {
-        throw FriendlyException(
-          'All workbook sheets must use the same columns.',
-        );
+    final headings = rows.first.map((e) => '$e').toList();
+    final keys = headings.map(canonicalHeader).toList();
+    if (keys.toSet().length != keys.length) {
+      throw FriendlyException(
+        'Repeated columns in ${sheetNames[file.name] ?? file.name}.',
+      );
+    }
+    for (var i = 0; i < keys.length; i++) {
+      if (!mergedHeaders.any((h) => canonicalHeader(h) == keys[i])) {
+        mergedHeaders.add(headings[i]);
       }
-      result.addAll(rows.skip(1));
+    }
+    final inferred = importResourceType(sheetNames[file.name] ?? '');
+    if (inferred != null &&
+        !mergedHeaders.any((h) => canonicalHeader(h) == 'kind')) {
+      mergedHeaders.add('kind');
+    }
+    for (final row in rows.skip(1)) {
+      final item = <String, Object?>{
+        for (var i = 0; i < keys.length; i++)
+          keys[i]: i < row.length ? row[i] : '',
+      };
+      if (inferred != null &&
+          (item['kind'] == null || '${item['kind']}'.isEmpty)) {
+        item['kind'] = inferred;
+      }
+      mergedRows.add(item);
+    }
+    if (mergedRows.length > 2000) {
+      throw FriendlyException('Import at most 2,000 rows at a time.');
     }
   }
+  result.add(mergedHeaders);
+  for (final row in mergedRows) {
+    result.add([for (final h in mergedHeaders) row[canonicalHeader(h)] ?? '']);
+  }
   return tableCsv(result);
+}
+
+List<Map<String, dynamic>> resourceJsonRows(
+  Object? data, [
+  Map<String, String> inherited = const {},
+]) {
+  if (data is List) {
+    return [for (final item in data) ...resourceJsonRows(item, inherited)];
+  }
+  if (data is! Map) return [];
+  final map = Map<String, dynamic>.from(data);
+  if (map['rows'] is List) return resourceJsonRows(map['rows'], inherited);
+  final groups = {
+    'notes': 'notes',
+    'mcqs': 'mcqs',
+    'special': 'special',
+    'papers': 'papers',
+    'pastPapers': 'papers',
+    'pastpapers': 'papers',
+    'lectures': 'lectures',
+  };
+  final grouped = [
+    for (final e in groups.entries)
+      if (map[e.key] is List)
+        ...resourceJsonRows(map[e.key], {...inherited, 'kind': e.value}),
+  ];
+  if (grouped.isNotEmpty) return grouped;
+  final canonical = <String, String>{...inherited};
+  for (final e in map.entries) {
+    if (e.value is! List && e.value is! Map && e.value != null) {
+      final key = canonicalHeader(e.key);
+      if ('${e.value}'.trim().isNotEmpty) canonical[key] = '${e.value}';
+    }
+  }
+  for (final spec in const [
+    ('semesters', 'professional_year'),
+    ('subjects', 'semester'),
+    ('sections', 'subject'),
+    ('topics', 'section'),
+    ('files', 'topic'),
+  ]) {
+    if (map[spec.$1] is List && (canonical[spec.$2] ?? '').isEmpty) {
+      canonical[spec.$2] =
+          '${map['label'] ?? map['title'] ?? map['name'] ?? ''}';
+    }
+  }
+  for (final spec in const [
+    ('semesters', 'semester'),
+    ('subjects', 'subject'),
+    ('sections', 'section'),
+    ('topics', 'topic'),
+    ('files', 'title'),
+  ]) {
+    final children = map[spec.$1];
+    if (children is List) {
+      return [
+        for (final child in children)
+          if (child is Map)
+            ...resourceJsonRows({
+              ...Map<String, dynamic>.from(child),
+              if (spec.$2 != 'title')
+                spec.$2:
+                    child[spec.$2] ??
+                    child['label'] ??
+                    child['title'] ??
+                    child['name'] ??
+                    '',
+            }, canonical),
+      ];
+    }
+  }
+  return [canonical];
 }

@@ -92,13 +92,13 @@ export async function readBoard(db,member,data,now=Date.now()) {
   const today=dayAt(now),start=periodStart(data.period,today),year=member.academicYear;
   const privacy=await db.prepare('SELECT version FROM rank_revision WHERE id=1').first();
   let meta=await db.prepare('SELECT * FROM rank_boards WHERE academic_year=? AND period=?').bind(year,data.period).first();
-  if(!meta||meta.day!==today||meta.revision!==privacy.version||now-meta.updated_at>=60000) {
+  if(!meta||meta.day!==today||meta.revision!==privacy.version||now-meta.updated_at>=15000) {
     const proposed=crypto.randomUUID();
-    // A board is published atomically and stays immutable for one minute. Live
+    // A board is published atomically and stays immutable for fifteen seconds. Live
     // heartbeats cannot reset every page or silently move rows between pages.
     // Membership/privacy changes invalidate it immediately on the next read.
     await db.batch([
-      db.prepare('INSERT INTO rank_boards(academic_year,period,generation,updated_at,revision,day) VALUES(?,?,?,?,?,?) ON CONFLICT(academic_year,period) DO UPDATE SET generation=excluded.generation,updated_at=excluded.updated_at,revision=excluded.revision,day=excluded.day WHERE rank_boards.updated_at<=? OR rank_boards.revision<>excluded.revision OR rank_boards.day<>excluded.day').bind(year,data.period,proposed,now,privacy.version,today,now-60000),
+      db.prepare('INSERT INTO rank_boards(academic_year,period,generation,updated_at,revision,day) VALUES(?,?,?,?,?,?) ON CONFLICT(academic_year,period) DO UPDATE SET generation=excluded.generation,updated_at=excluded.updated_at,revision=excluded.revision,day=excluded.day WHERE rank_boards.updated_at<=? OR rank_boards.revision<>excluded.revision OR rank_boards.day<>excluded.day').bind(year,data.period,proposed,now,privacy.version,today,now-15000),
       db.prepare(`INSERT INTO rank_entries(generation,uid,alias,academicYear,verifiedMinutes,sessions,score,rank) SELECT ?,uid,alias,academicYear,verifiedMinutes,sessions,score,rank FROM (${boardQuery}) WHERE EXISTS(SELECT 1 FROM rank_boards WHERE generation=?)`).bind(proposed,year,start,today,proposed),
       db.prepare('DELETE FROM rank_entries WHERE generation NOT IN(SELECT generation FROM rank_boards)')
     ]);

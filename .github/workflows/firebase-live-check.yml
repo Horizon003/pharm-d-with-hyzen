@@ -1,0 +1,43 @@
+name: Firebase authenticated production smoke check
+on:
+  push:
+    branches: [work/monochrome-motion-1.5.5]
+    paths: ['.github/workflows/firebase-live-check.yml']
+  workflow_dispatch:
+    inputs:
+      permissions_only:
+        description: Read deployment permissions only; do not create any test users/data
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check backend/tools/live-firebase-smoke.cjs
+  live-check:
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+        working-directory: backend/functions
+      - name: Check temporary authenticated accounts; always clean up their data
+        env:
+          HYZEN_LIVE_FIREBASE_CHECK: 'yes'
+        run: |
+          if [ "${{ inputs.permissions_only }}" = 'true' ]; then
+            node backend/tools/live-firebase-smoke.cjs --permissions-only
+          else
+            node backend/tools/live-firebase-smoke.cjs
+          fi

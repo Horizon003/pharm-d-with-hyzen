@@ -11,6 +11,7 @@ import '../notifications/notifications_screen.dart';
 import 'study_notifications.dart';
 import 'study_session.dart';
 import 'study_cloud.dart';
+import 'reward_controller.dart';
 import 'engagement_reminders.dart';
 
 String studyDayKey(DateTime d) =>
@@ -232,7 +233,11 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
   late final int Function() _elapsedMs;
   int _lastMs = 0;
   String? _session;
-  DateTime? _interaction;
+  final Set<Object> _documents = {};
+  DateTime? _closeAt;
+  bool _foreground = true;
+  bool get awaitingClose => _closeAt != null;
+  bool get hasOpenDocument => _documents.isNotEmpty;
   bool _disposed = false;
   final List<StudyEvent> _events = [];
   final Set<String> _completed = {};
@@ -252,8 +257,22 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
     _save();
   }
 
-  void interaction() {
-    _interaction = clock();
+  void interaction() {} // Reading does not require repeated screen touches.
+
+  void documentOpened(Object owner) {
+    if (_disposed) return;
+    _documents.add(owner);
+    if (_closeAt != null && !clock().isBefore(_closeAt!)) stop();
+    _closeAt = null;
+    if (_foreground) start();
+  }
+
+  void documentClosed(Object owner) {
+    if (_disposed || !_documents.remove(owner) || _documents.isNotEmpty) return;
+    pause(); // The grace period never earns study time or points.
+    _closeAt = clock().add(const Duration(seconds: 30));
+    _manageTicker();
+    notifyListeners();
   }
 
   void _recompute() {
@@ -413,6 +432,7 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
   void _manageTicker() {
     final needed =
         running ||
+        _closeAt != null ||
         _tasks.any(
           (t) =>
               t.enabled &&
@@ -430,13 +450,14 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _tick() {
+    if (_closeAt != null && !clock().isBefore(_closeAt!)) {
+      _closeAt = null;
+      stop();
+    }
     if (running) {
       final now = clock(), delta = _elapsedMs() - _lastMs;
       final wallDelta = now.difference(_lastTick!).inMilliseconds;
-      if (delta < 0 ||
-          delta > 30000 ||
-          (wallDelta - delta).abs() > 2000 ||
-          now.difference(_interaction ?? now) > const Duration(minutes: 5)) {
+      if (delta < 0 || delta > 30000 || (wallDelta - delta).abs() > 2000) {
         running = false;
         _lastTick = null;
         _manageTicker();
@@ -459,19 +480,78 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
 
   void checkpoint() => _tick();
   StudySyncWorker? _sync;
+  StreamSubscription<Map<String, dynamic>>? _history;
   String get cloudStatus => _cloudStatus;
   String _cloudStatus = 'Cloud sync unavailable · saved on this device';
   void markCloudUnavailable() {
-    if (_disposed || _cloudStatus == 'Cloud sync unavailable · saved on this device') {
+    if (_disposed ||
+        _cloudStatus == 'Cloud sync unavailable · saved on this device') {
       return;
     }
     _cloudStatus = 'Cloud sync unavailable · saved on this device';
     notifyListeners();
   }
-  void attachCloud(StudyCloud cloud) {
+
+  void attachCloud(
+    StudyCloud cloud, {
+    void Function(Map<String, dynamic>)? onRewards,
+    VoidCallback? onRank,
+  }) {
     _sync?.dispose();
+    _history?.cancel();
+    final migrationKey = '${storageKey}_firebase_history_v1';
+    if (prefs.getBool(migrationKey) != true) {
+      for (var i = 0; i < _events.length; i++) {
+        if (_events[i].synced) {
+          _events[i] = StudyEvent.fromJson({
+            ..._events[i].toJson(),
+            'synced': false,
+          });
+        }
+      }
+      _save();
+      unawaited(flush().then((_) => prefs.setBool(migrationKey, true)));
+    }
+    if (cloud.supportsRealtime) {
+      _history = cloud
+          .watch('history')
+          .listen(
+            (data) {
+              if (_disposed) return;
+              final ids = {for (final e in _events) e.id};
+              var changed = false;
+              for (final raw in data['events'] as List? ?? []) {
+                try {
+                  final event = StudyEvent.fromJson({
+                    ...Map<String, dynamic>.from(raw),
+                    'synced': true,
+                  });
+                  if (ids.add(event.id)) {
+                    _events.add(event);
+                    changed = true;
+                  }
+                } catch (_) {
+                  /* Keep valid history when one interval needs recovery. */
+                }
+              }
+              if (changed) {
+                _recompute();
+                _save();
+                notifyListeners();
+              }
+            },
+            onError: (Object _) {
+              if (!_disposed) {
+                _cloudStatus = 'Sync unavailable · local history is safe';
+                notifyListeners();
+              }
+            },
+          );
+    }
     _sync = StudySyncWorker(
       cloud: cloud,
+      onRewards: onRewards,
+      onRank: onRank,
       events: () => pendingEvents,
       acknowledge: (ids) async {
         acknowledge(ids);
@@ -513,9 +593,11 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void stop() {
+    _closeAt = null;
     pause();
     if (_session != null) _completed.add(_session!);
     _session = null;
+    _manageTicker();
     _sync?.changed();
     _save();
     notifyListeners();
@@ -596,7 +678,7 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
       extraAlerts: task.extraAlerts,
       quiet: task.quiet,
       until: task.until,
-      route: '/study-goals',
+      route: task.category == 'Calendar' ? '/study-calendar' : '/study-goals',
     );
   }
 
@@ -704,8 +786,10 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) pause();
+    _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) pause();
     if (state == AppLifecycleState.resumed) {
+      if (_documents.isNotEmpty) start();
       _checkReminders();
       refreshEngagementReminders(force: true);
     }
@@ -715,6 +799,7 @@ class StudyTracker extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     pause();
     _sync?.dispose();
+    _history?.cancel();
     _disposed = true;
     _watch.stop();
     _timer?.cancel();
@@ -749,7 +834,11 @@ final studyTrackerProvider = ChangeNotifierProvider<StudyTracker>((ref) {
   if (user != null &&
       studyApiBase.isNotEmpty &&
       ref.watch(firebaseReadyProvider)) {
-    tracker.attachCloud(StudyCloud(user));
+    tracker.attachCloud(
+      StudyCloud(user),
+      onRewards: (data) => ref.read(rewardProvider).apply(data),
+      onRank: () => ref.read(rankRefreshProvider.notifier).state++,
+    );
   } else if (user != null) {
     tracker.markCloudUnavailable();
   }

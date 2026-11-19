@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/ui_kit.dart';
-import '../../../core/widgets/rive_mascot.dart';
+import '../../../core/widgets/hyzen_art.dart';
 import '../../academics/domain/models.dart';
 import '../../academics/presentation/library_screens.dart';
 import '../../shell/app_shell.dart';
@@ -79,10 +79,13 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
           padding: const EdgeInsets.symmetric(horizontal: HSpace.screen),
           sliver: SliverList.list(
             children: [
-              Text(
-                '${all.where((r) => r.isReady).length} saved files · ${formatBytes(used)}',
-                style: t.textTheme.titleSmall,
+              HyzenBanner(
+                title: 'Your offline library',
+                subtitle:
+                    '${all.where((r) => r.isReady).length} saved files · ${formatBytes(used)}',
+                art: 'downloads',
               ),
+              const SizedBox(height: 10),
               if (kIsWeb)
                 Text(
                   'Offline downloads are available in the Android app.',
@@ -112,13 +115,6 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
               ),
               const Gap(HSpace.md),
               if (list.isEmpty && all.isEmpty) ...[
-                const Center(
-                  child: HyzenRiveMascot(
-                    state: HyzenRiveState.downloading,
-                    size: 150,
-                    semanticLabel: 'Hyzen panda ready to save study files',
-                  ),
-                ),
                 EmptyState(
                   icon: Icons.cloud_download_outlined,
                   title: 'No downloads yet',

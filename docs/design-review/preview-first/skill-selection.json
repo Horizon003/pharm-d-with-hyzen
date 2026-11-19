@@ -1,0 +1,20 @@
+{
+  "checked_at_utc": "2026-11-17T06:04:58.817174+00:00",
+  "scope": "Skill installation and visual proposals only; native application changes await user design selection.",
+  "repositories": [
+    {
+      "repository": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "stars_observed": 150537,
+      "revision": "e59ff376a41f7ca47b7541ad5c116495cbade3ee"
+    },
+    {
+      "repository": "Leonxlnx/taste-skill",
+      "stars_observed": 117065,
+      "revision": "f6b76575f949707b4e3c37cd86cb44b0b98643e8"
+    },
+    {
+      "repository": "heydamir/unslop",
+      "stars_observed": 17361
+    }
+  ]
+}

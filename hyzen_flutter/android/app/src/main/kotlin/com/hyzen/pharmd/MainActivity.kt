@@ -27,6 +27,7 @@ class MainActivity : FlutterActivity() {
     private val imageCode = 8713
     private val studioPickCode = 8714
     private var exportPath: String? = null
+    private var templateBytes: ByteArray? = null
     private var dataSelection=false
     private var pending: MethodChannel.Result? = null
     private var templateText: String? = null
@@ -47,6 +48,7 @@ class MainActivity : FlutterActivity() {
                     result.error("busy", "Finish the current file selection first.", null)
                     return@setMethodCallHandler
                 }
+                templateBytes = null
                 when (call.method) {
                     "pickCsvFiles", "pickDataFiles" -> {
                         dataSelection=call.method=="pickDataFiles"
@@ -95,6 +97,7 @@ class MainActivity : FlutterActivity() {
                     "saveFile", "exportFile" -> {
                         pending=result
                         templateText=call.argument<String>("text")
+                        templateBytes=call.argument<ByteArray>("bytes")
                         exportPath=call.argument<String>("path")
                         try {startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                             addCategory(Intent.CATEGORY_OPENABLE)
@@ -151,6 +154,7 @@ class MainActivity : FlutterActivity() {
         val result = pending
         pending = null
         templateText = null
+            templateBytes = null
         exportPath = null
         result?.error(code, message, null)
     }
@@ -170,12 +174,14 @@ class MainActivity : FlutterActivity() {
         if (resultCode != Activity.RESULT_OK) {
             pending = null
             templateText = null
+            templateBytes = null
         exportPath = null
             result.success(if (requestCode == pickCode || requestCode == studioPickCode) emptyList<Map<String, Any>>() else if(requestCode==imageCode)null else false)
             return
         }
         val text = templateText ?: ""
         val sourcePath=exportPath
+        val binary=templateBytes
         fileWorker.execute {
             try {
                 val response: Any
@@ -184,6 +190,7 @@ class MainActivity : FlutterActivity() {
                     val stream = contentResolver.openOutputStream(uri, "wt") ?: throw IllegalStateException("Could not open destination.")
                     stream.use { target ->
                         if(sourcePath!=null)File(sourcePath).inputStream().use{it.copyTo(target)}
+                        else if(binary!=null)target.write(binary)
                         else target.write(text.toByteArray(Charsets.UTF_8))
                     }
                     response = true
@@ -243,7 +250,7 @@ class MainActivity : FlutterActivity() {
                     val uris = mutableListOf<Uri>()
                     val clips = data?.clipData
                     if (clips != null) {
-                        if (clips.itemCount > 20) throw IllegalStateException("Choose at most 20 CSV files.")
+                        if (clips.itemCount > 20) throw IllegalStateException("Choose at most 20 data files.")
                         for (i in 0 until clips.itemCount) uris.add(clips.getItemAt(i).uri)
                     } else data?.data?.let { uris.add(it) }
                     response = uris.map { uri ->
@@ -255,7 +262,7 @@ class MainActivity : FlutterActivity() {
                             val buffer = ByteArray(8192)
                             var count = it.read(buffer)
                             while (count != -1) {
-                                if (bytes.size() + count > 4 * 1024 * 1024) throw IllegalStateException("Each CSV must be 4 MB or smaller.")
+                                if (bytes.size() + count > (if (dataSelection) 25 else 4) * 1024 * 1024) throw IllegalStateException("Data files must be 25 MB or smaller.")
                                 bytes.write(buffer, 0, count)
                                 count = it.read(buffer)
                             }
@@ -267,6 +274,7 @@ class MainActivity : FlutterActivity() {
                     if (pending === result) {
                         pending = null
                         templateText = null
+            templateBytes = null
         exportPath = null
                         result.success(response)
                     }

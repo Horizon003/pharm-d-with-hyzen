@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
+import 'press_feedback.dart';
+import 'display_preferences.dart';
 
 /// Opaque surfaces; deliberately inexpensive to compose on Android.
 class SurfacePanel extends StatelessWidget {
@@ -20,7 +22,7 @@ class SurfacePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
-      color: tint?.withAlpha(255) ?? Theme.of(context).colorScheme.surface,
+      color: tint ?? Theme.of(context).colorScheme.surface,
       borderRadius: borderRadius ?? BorderRadius.circular(radius),
     ),
     child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
@@ -32,17 +34,21 @@ class HCard extends StatelessWidget {
     super.key,
     required this.child,
     this.onTap,
+    this.onLongPress,
     this.padding = const EdgeInsets.all(12),
-    this.radius = HRadius.md,
+    this.radius = HRadius.lg,
     this.color,
     this.shadow = true,
     this.semanticLabel,
+    this.outlineColor,
+    this.gradient,
   });
   final Widget child;
-  final VoidCallback? onTap;
+  final VoidCallback? onTap, onLongPress;
   final EdgeInsetsGeometry padding;
   final double radius;
-  final Color? color;
+  final Color? color, outlineColor;
+  final Gradient? gradient;
   final bool shadow;
   final String? semanticLabel;
   @override
@@ -54,13 +60,19 @@ class HCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: br,
         side: color == null
-            ? BorderSide(color: t.colorScheme.outlineVariant)
+            ? BorderSide(color: outlineColor ?? t.colorScheme.outlineVariant)
             : BorderSide.none,
       ),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.none,
       child: InkWell(
         onTap: onTap,
-        child: Padding(padding: padding, child: child),
+        onLongPress: onLongPress,
+        borderRadius: br,
+        child: Ink(
+          decoration: BoxDecoration(gradient: gradient, borderRadius: br),
+          padding: padding * UiDensity.of(context),
+          child: child,
+        ),
       ),
     );
     final decorated = DecoratedBox(
@@ -69,14 +81,14 @@ class HCard extends StatelessWidget {
         boxShadow: shadow && t.brightness == Brightness.light
             ? const [
                 BoxShadow(
-                  color: Color(0x0A1A3440),
-                  blurRadius: 14,
-                  offset: Offset(0, 4),
+                  color: Color(0x08000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 1),
                 ),
               ]
             : null,
       ),
-      child: card,
+      child: HPressFeedback(enabled: onTap != null, child: card),
     );
     return semanticLabel == null
         ? decorated
@@ -93,8 +105,8 @@ class HBackground extends StatelessWidget {
   final Widget child;
   final bool intense;
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: Theme.of(context).scaffoldBackgroundColor,
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(gradient: hPageGradient),
     child: child,
   );
 }
@@ -109,12 +121,12 @@ class HEntrance extends StatelessWidget {
       begin: MediaQuery.disableAnimationsOf(context) ? 1 : 0,
       end: 1,
     ),
-    duration: HMotion.slow,
+    duration: HMotion.duration(context, HMotion.medium),
     curve: HMotion.curve,
     child: child,
     builder: (_, v, c) => Opacity(
       opacity: v.clamp(0, 1),
-      child: Transform.translate(offset: Offset(0, 12 * (1 - v)), child: c),
+      child: Transform.translate(offset: Offset(0, 6 * (1 - v)), child: c),
     ),
   );
 }

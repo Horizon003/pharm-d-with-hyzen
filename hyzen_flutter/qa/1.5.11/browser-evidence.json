@@ -1,0 +1,62 @@
+{
+  "captures": [
+    {
+      "name": "login",
+      "route": "/login",
+      "width": 390
+    },
+    {
+      "name": "login-narrow",
+      "route": "/login",
+      "width": 320,
+      "scale": 2
+    },
+    {
+      "name": "ranking",
+      "route": "/campus-rank",
+      "width": 390
+    },
+    {
+      "name": "ranking-setup",
+      "route": "/campus-rank",
+      "width": 320,
+      "scenario": "rank-setup",
+      "scale": 1.3
+    },
+    {
+      "name": "study",
+      "route": "/study",
+      "width": 390
+    },
+    {
+      "name": "home-content",
+      "route": "/home",
+      "width": 390,
+      "height": 1700
+    },
+    {
+      "name": "welcome-notice",
+      "route": "/home",
+      "width": 390,
+      "scenario": "notice"
+    },
+    {
+      "name": "lectures",
+      "route": "/lectures",
+      "width": 390
+    }
+  ],
+  "checks": [
+    "first-visit explicit privacy choice saved",
+    {
+      "embeddedLecture": true,
+      "src": "https://www.youtube-nocookie.com/embed/M7lc1UVf-VE?playsinline=1&rel=0&enablejsapi=0"
+    }
+  ],
+  "errors": [],
+  "sourceCommit": "9092dc9f8d04ebd5d0932284bcc3b9847974e4e0",
+  "limitations": [
+    "Sample-data Flutter web preview; no production student data",
+    "iframe route and URL verified; physical Android YouTube playback pending"
+  ]
+}

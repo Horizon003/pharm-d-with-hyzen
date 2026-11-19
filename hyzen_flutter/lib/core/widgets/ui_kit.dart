@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'workspace_icons.dart';
+import 'refinement_art.dart';
 
 import 'package:flutter/material.dart';
 
@@ -68,8 +70,12 @@ class ResourceTile extends StatelessWidget {
     this.eyebrow,
     this.badge,
     this.compact = false,
+    this.leading,
+    this.surfaceColor,
   });
   final bool compact;
+  final Widget? leading;
+  final Color? surfaceColor;
   final IconData icon;
   final Color color;
   final String title;
@@ -83,57 +89,74 @@ class ResourceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: HSpace.sm),
+      padding: const EdgeInsets.only(bottom: 8),
       child: HCard(
-        color:
-            eyebrow != null && badge == null && t.brightness == Brightness.light
-            ? Color.alphaBlend(
-                adaptiveAccent(context, color).withValues(alpha: .07),
-                t.colorScheme.surface,
-              )
-            : null,
+        radius: 24,
+        color: surfaceColor,
+        shadow: false,
         onTap: onTap,
         semanticLabel: title,
         padding: EdgeInsets.symmetric(
-          horizontal: HSpace.sm,
-          vertical: compact ? 10 : 9,
+          horizontal: 12,
+          vertical: compact ? 10 : 12,
         ),
         child: Row(
           children: [
-            IconBadge(icon: icon, color: color, size: compact ? 28 : 36),
-            const SizedBox(width: 10),
+            leading ??
+                (icon == Icons.description_rounded
+                    ? const RefinementArt(RefinementGlyph.document, size: 40)
+                    : (icon == Icons.play_circle_fill_rounded ||
+                          icon == Icons.play_circle_rounded ||
+                          icon == Icons.video_library_outlined)
+                    ? const RefinementArt(RefinementGlyph.lecture, size: 40)
+                    : glyphForIcon(icon) != null
+                    ? WorkspaceIcon(
+                        glyphForIcon(icon)!,
+                        size: compact ? 34 : 40,
+                      )
+                    : IconBadge(
+                        icon: icon,
+                        color: color,
+                        size: compact ? 36 : 42,
+                      )),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (eyebrow != null)
-                    Text(
-                      eyebrow!.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.textTheme.labelSmall?.copyWith(
-                        color: adaptiveAccent(context, color),
-                      ),
+                  HMarqueeText(
+                    title,
+                    style: t.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                  HMarqueeText(title, style: t.textTheme.titleMedium),
-                  if (subtitle != null && subtitle!.isNotEmpty) ...[
-                    const SizedBox(height: 1),
+                  ),
+                  if (subtitle != null && subtitle!.isNotEmpty)
                     Text(
                       subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: t.textTheme.bodyMedium,
+                      style: t.textTheme.bodySmall,
                     ),
-                  ],
+                  if (eyebrow != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(
+                        eyebrow!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.textTheme.labelSmall,
+                      ),
+                    ),
                   if (badge != null) ...[const SizedBox(height: 4), badge!],
                 ],
               ),
             ),
-            const SizedBox(width: HSpace.xs),
+            const SizedBox(width: 6),
             trailing ??
-                Icon(
+                const Icon(
                   Icons.chevron_right_rounded,
-                  color: t.colorScheme.onSurfaceVariant,
+                  size: 18,
+                  color: HColors.ink2,
                 ),
           ],
         ),
@@ -269,10 +292,10 @@ class HeroPanel extends StatelessWidget {
                   children: [
                     if (eyebrow != null)
                       Text(
-                        eyebrow!.toUpperCase(),
+                        eyebrow!,
                         style: t.textTheme.labelSmall?.copyWith(
                           color: adaptiveAccent(context, color),
-                          letterSpacing: 1.1,
+                          letterSpacing: 0,
                         ),
                       ),
                     const SizedBox(height: 6),
@@ -371,7 +394,7 @@ class HtmlText extends StatelessWidget {
           TextSpan(
             text: clean(src.substring(last, m.start)),
             style: TextStyle(
-              fontWeight: bold > 0 ? FontWeight.w800 : null,
+              fontWeight: bold > 0 ? FontWeight.w600 : null,
               fontStyle: italic > 0 ? FontStyle.italic : null,
               color: bold > 0 ? Theme.of(context).colorScheme.onSurface : null,
             ),

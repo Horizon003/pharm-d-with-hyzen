@@ -1,0 +1,5 @@
+- dialog:
+  - group:
+    - button "Close notice"
+    - text: A little focus, every day Welcome to your study space Your notes, lectures and study progress, together in one place. Make yourself at home.
+    - button "Let’s get started"

@@ -1,3 +1,6 @@
+import '../../downloads/data/downloads_controller.dart';
+import '../data/search_scope.dart';
+import 'home_search.dart';
 import 'package:flutter/material.dart';
 import '../../../app/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,14 +23,22 @@ import '../data/ocr_index.dart';
 import '../../../app/safe_nav.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key, this.focusSearch = false});
+  const SearchScreen({
+    super.key,
+    this.focusSearch = false,
+    this.initialQuery = '',
+    this.initialScope = SearchScope.all,
+  });
   final bool focusSearch;
+  final String initialQuery;
+  final SearchScope initialScope;
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
-  String _q = '';
+  late String _q = widget.initialQuery;
+  late SearchScope _scope = widget.initialScope;
   HitType? _only;
 
   static const _filters = <(HitType?, String)>[
@@ -39,6 +50,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     (HitType.product, 'Shop'),
     (HitType.blog, 'Blog'),
   ];
+
+  @override
+  void didUpdateWidget(covariant SearchScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialQuery != widget.initialQuery ||
+        oldWidget.initialScope != widget.initialScope) {
+      _q = widget.initialQuery;
+      _scope = widget.initialScope;
+      _only = null;
+    }
+  }
 
   IconData _icon(HitType t) => switch (t) {
     HitType.subject => Icons.science_rounded,
@@ -69,8 +91,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final index = ref.watch(searchIndexProvider);
     ref.watch(ocrIndexProvider);
     final hits = [
-      ...runSearch(index, _q, only: _only),
-      if (_q.trim().isNotEmpty && (_only == null || _only == HitType.file))
+      ...runSearch(
+        scopedIndex(index, ref.watch(downloadsProvider).values, _scope),
+        _q,
+        only: _only,
+      ),
+      if (_scope == SearchScope.all &&
+          _q.trim().isNotEmpty &&
+          (_only == null || _only == HitType.file))
         for (final result in ref.read(ocrIndexProvider.notifier).search(_q))
           SearchHit(
             type: HitType.file,
@@ -105,29 +133,49 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 HSearchField(
-                  key: ValueKey(session),
-                  hint: 'Subjects, topics, files\u2026',
+                  key: ValueKey('$session:${widget.initialQuery}'),
+                  hint: 'Notes, books, lectures, downloads…',
+                  initial: widget.initialQuery,
                   autofocus: widget.focusSearch,
                   onChanged: (v) => setState(() => _q = v),
                 ),
                 const Gap(HSpace.sm),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final f in _filters)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 5),
-                          child: ChoiceChip(
-                            label: Text(f.$2),
-                            selected: _only == f.$1,
-                            onSelected: (_) => setState(() => _only = f.$1),
-                            visualDensity: VisualDensity.compact,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
+                if (_q.isNotEmpty)
+                  SearchScopePills(
+                    value: _scope,
+                    onChanged: (scope) => setState(() {
+                      _scope = scope;
+                      _only = null;
+                    }),
+                  ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PopupMenuButton<int>(
+                    tooltip: 'More search filters',
+                    onSelected: (index) =>
+                        setState(() => _only = _filters[index].$1),
+                    itemBuilder: (_) => [
+                      for (var i = 0; i < _filters.length; i++)
+                        PopupMenuItem(value: i, child: Text(_filters[i].$2)),
                     ],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 14,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.tune_rounded, size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            _only == null
+                                ? 'More filters'
+                                : _filters.firstWhere((f) => f.$1 == _only).$2,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 const Gap(HSpace.md),

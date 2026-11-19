@@ -1,0 +1,16 @@
+{
+  "screens": [
+    "/home",
+    "/study",
+    "/pdf-studio",
+    "/settings",
+    "/notifications",
+    "/study-goals"
+  ],
+  "errors": [],
+  "baseHref": "/pharm-d-with-hyzen/app/",
+  "textScale": 2,
+  "width": 320,
+  "source": "2e103612b4d0f61a4d0e3ca06c6f78c120477b2f",
+  "published": true
+}

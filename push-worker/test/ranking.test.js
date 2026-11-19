@@ -90,13 +90,13 @@ test('immutable snapshots keep pagination stable while live study changes scores
   const first=await readBoard(db,users[0],{period:'week'},now);
   assert.equal(first.entries.length,30);assert.equal(first.next,30);
   sql.prepare('UPDATE rank_days SET seconds=20000 WHERE uid=?').run(users[34].uid);
-  const second=await readBoard(db,users[0],{period:'week',generation:first.generation,after:30},now+15000);
+  const second=await readBoard(db,users[0],{period:'week',generation:first.generation,after:30},now+10000);
   assert.equal(second.status,'ready');assert.equal(second.entries.length,5);
   assert.equal(new Set([...first.entries,...second.entries].map(row=>row.uid)).size,35);
   assert.equal(second.entries.at(-1).uid,users[34].uid);
-  const refreshed=await readBoard(db,users[0],{period:'week',generation:first.generation,after:30},now+60001);
+  const refreshed=await readBoard(db,users[0],{period:'week',generation:first.generation,after:30},now+15001);
   assert.equal(refreshed.status,'refresh');
-  const current=await readBoard(db,users[0],{period:'week'},now+60002);
+  const current=await readBoard(db,users[0],{period:'week'},now+15002);
   assert.equal(current.entries[0].uid,users[34].uid);
   assert.equal(sql.prepare('SELECT COUNT(DISTINCT generation) AS n FROM rank_entries').get().n,1);
   sql.close();

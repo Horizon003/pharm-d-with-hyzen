@@ -1,0 +1,227 @@
+name: Signed Android 1.5.8 release
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Run native profile verification (disable only when validated separately)
+        type: boolean
+        default: true
+      publish:
+        description: Publish after all validations succeed
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: release-158
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      PUSH_API_BASE: ${{ vars.HYZEN_PUSH_API_BASE }}
+      PDFIUM_MIRROR_DIR: ${{ github.workspace }}/tools/ci/pdfium
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk for universal native libraries
+        run: sudo rm -rf /usr/share/dotnet /usr/local/share/powershell /opt/ghc /usr/share/swift
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+          cache-read-only: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.4'
+          cache: true
+      - name: Restore owner release signing
+        working-directory: hyzen_flutter
+        env:
+          KEYSTORE_BASE64: ${{ secrets.HYZEN_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.HYZEN_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.HYZEN_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.HYZEN_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64" && test -n "$STORE_PASSWORD" && test -n "$KEY_PASSWORD" && test -n "$KEY_ALIAS"
+          mkdir -p android/signing
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/signing/hyzen-release.jks
+          printf 'storeFile=signing/hyzen-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/key.properties
+          chmod 600 android/signing/hyzen-release.jks android/key.properties
+      - run: flutter pub get
+        working-directory: hyzen_flutter
+      - run: python tools/ci/patch_pdfrx_download.py
+      - run: python tools/ci/validate_push_url.py
+      - run: flutter analyze --no-pub && flutter test --no-pub -r expanded --timeout 90s
+        working-directory: hyzen_flutter
+      - name: Stage checksum-verified Gradle runtime
+        run: python tools/ci/prepare_gradle.py
+      - name: Build universal release APK through Flutter
+        working-directory: hyzen_flutter
+        run: |
+          flutter build apk --release --no-shrink --target-platform android-arm,android-arm64,android-x64 --dart-define=PUSH_API_BASE="$PUSH_API_BASE" --dart-define=HYZEN_APP_VERSION=1.5.8+17
+      - name: Build release native instrumentation tests
+        working-directory: hyzen_flutter/android
+        run: |
+          defines=$(python3 -c 'import os,base64; print(",".join(base64.b64encode(v.encode()).decode() for v in ["PUSH_API_BASE="+os.environ["PUSH_API_BASE"],"HYZEN_APP_VERSION=1.5.8+17"]))')
+          gradle :app:assembleReleaseAndroidTest -Pdart-defines="$defines" -Ptarget-platform=android-arm,android-arm64,android-x64 -Ptarget=lib/main.dart
+      - name: Verify and package
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp hyzen_flutter/build/app/outputs/apk/release/app-release.apk release/PharmD-With-Hyzen-1.5.8.apk
+          apk=release/PharmD-With-Hyzen-1.5.8.apk
+          signer=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$signer" verify --print-certs "$apk" > release/signing-report.txt
+          grep -qi '3fd902d131ae56d8de4792c9f5953759e2b375e32bcad8f57f7ef5c0ab887f83' release/signing-report.txt
+          unzip -Z1 "$apk" > /tmp/apk-entries.txt
+          for abi in armeabi-v7a arm64-v8a x86_64; do grep -Fxq "lib/$abi/libflutter.so" /tmp/apk-entries.txt; done
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
+          "$aapt" dump badging "$apk" > release/apk-metadata.txt
+          grep -q "versionCode='17' versionName='1.5.8'" release/apk-metadata.txt
+          (cd release && sha256sum PharmD-With-Hyzen-1.5.8.apk > SHA256SUMS.txt)
+          printf 'Source commit: %s\nBuild: %s/%s/actions/runs/%s\n' "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > release/provenance.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-release-158
+          path: release/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-tests-158
+          path: hyzen_flutter/build/app/outputs/apk/androidTest/release/app-release-androidTest.apk
+          if-no-files-found: error
+      - name: Remove signing files
+        if: always()
+        run: rm -f hyzen_flutter/android/key.properties hyzen_flutter/android/signing/hyzen-release.jks
+  install-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-release-158
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-tests-158
+          path: native-test
+      - name: Download successful production baseline for update check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download v1.5.7-16 --pattern PharmD-With-Hyzen-1.5.7.apk --dir baseline
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            adb install baseline/PharmD-With-Hyzen-1.5.7.apk
+            adb install -t native-test/app-release-androidTest.apk
+            adb shell am instrument -w -e class com.hyzen.pharmd.UpdateRetentionTest -e phase seed com.hyzen.pharmd.test/androidx.test.runner.AndroidJUnitRunner > update-seed.txt
+            grep -q 'OK (1 test)' update-seed.txt
+            adb install -r release/PharmD-With-Hyzen-1.5.8.apk
+            adb shell am instrument -w -e class com.hyzen.pharmd.UpdateRetentionTest com.hyzen.pharmd.test/androidx.test.runner.AndroidJUnitRunner > update-verify.txt
+            grep -q 'OK (1 test)' update-verify.txt
+            adb shell am instrument -w -e notClass com.hyzen.pharmd.UpdateRetentionTest com.hyzen.pharmd.test/androidx.test.runner.AndroidJUnitRunner > native-pdf-tests.txt
+            grep -q 'OK (' native-pdf-tests.txt
+            ! grep -q 'FAILURES' native-pdf-tests.txt
+            adb shell monkey -p com.hyzen.pharmd -c android.intent.category.LAUNCHER 1
+            sleep 8
+            adb logcat -d > launch-logcat.txt
+            adb shell pidof com.hyzen.pharmd
+            ! grep -qE 'FATAL EXCEPTION|signal 11' launch-logcat.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-158-install-logs
+          path: |
+            launch-logcat.txt
+            update-seed.txt
+            update-verify.txt
+            native-pdf-tests.txt
+  native-profile:
+    if: inputs.profile
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PDFIUM_MIRROR_DIR: ${{ github.workspace }}/tools/ci/pdfium
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk
+        run: sudo rm -rf /usr/share/dotnet /usr/local/share/powershell /opt/ghc /usr/share/swift
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+          cache-read-only: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.4'
+          cache: true
+      - run: flutter pub get
+        working-directory: hyzen_flutter
+      - run: python tools/ci/patch_pdfrx_download.py
+      - run: python tools/ci/prepare_gradle.py
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: false
+          working-directory: hyzen_flutter
+          script: flutter drive --profile --no-dds --driver=test_driver/monochrome_profile.dart --target=integration_test/monochrome_profile_test.dart --dart-define=HYZEN_REVIEW_ROUTE=/home
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reference-native-profile
+          path: |
+            hyzen_flutter/qa/reference/native/
+            hyzen_flutter/build/integration_response_data.json
+          if-no-files-found: warn
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    needs: [build, install-smoke, native-profile]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-release-158
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: reference-native-profile
+          path: profile-evidence
+      - name: Attach measured profile evidence
+        run: python tools/ci/stage_profile_evidence.py profile-evidence release
+      - name: Publish release and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.5.8-17 release/* --target "$GITHUB_SHA" --title 'PHARM D WITH HYZEN 1.5.8 — Adaptive Motion Edition' --notes-file docs/release-1.5.8.md --latest

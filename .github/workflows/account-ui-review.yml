@@ -1,13 +1,7 @@
-name: Account UI validation and browser preview
+name: Deploy interactive Flutter UI preview
 
 on:
   workflow_dispatch:
-  push:
-    branches: [fix/mascot-motion-apk]
-    paths:
-      - 'hyzen_flutter/**'
-      - 'tools/capture_account_preview.cjs'
-      - '.github/workflows/account-ui-review.yml'
 
 permissions:
   contents: read
@@ -15,14 +9,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: account-review-${{ github.ref }}
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  validate-preview:
+  build:
     runs-on: ubuntu-latest
-    env:
-      PUSH_API_BASE: ${{ vars.HYZEN_PUSH_API_BASE }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -32,75 +24,37 @@ jobs:
           cache: true
       - run: flutter pub get
         working-directory: hyzen_flutter
-      - name: Format changed Dart sources for review
+      - run: flutter analyze --no-pub
         working-directory: hyzen_flutter
-        run: |
-          dart format lib/features/auth/presentation/login_screens.dart lib/features/auth/presentation/splash_welcome_screens.dart lib/core/widgets/hyzen_art.dart lib/features/pdf_studio/presentation/pdf_studio_screen.dart lib/features/home/presentation/home_screen.dart lib/features/home/presentation/home_background.dart lib/features/academics/presentation/discovery_widgets.dart lib/features/academics/presentation/library_screens.dart lib/features/downloads/data/downloads_controller.dart lib/features/downloads/domain/download_record.dart lib/core/widgets/common.dart lib/core/widgets/ui_kit.dart lib/features/shell/app_shell.dart lib/features/viewer/offline_pdf.dart lib/features/viewer/viewer_screen.dart lib/main_account_review.dart test/navigation_test.dart test/download_lifecycle_test.dart
-      - name: Analyze
+      - run: flutter test --no-pub --reporter expanded
         working-directory: hyzen_flutter
-        run: flutter analyze --no-pub
-      - name: Run regression tests
-        working-directory: hyzen_flutter
-        run: flutter test --no-pub --reporter expanded
-      - name: Build actual app and account review entrypoint for browser
-        working-directory: hyzen_flutter
+      - name: Build real Flutter sample-data preview
+        run: bash tools/live_preview/build.sh
+        env:
+          HYZEN_PREVIEW_BASE_HREF: /pharm-d-with-hyzen/
+      - name: Verify deploy paths
         run: |
-          test -n "$PUSH_API_BASE"
-          version=$(sed -n 's/^version: //p' pubspec.yaml)
-          flutter build web --release --no-pub --base-href /pharm-d-with-hyzen/ --dart-define=HYZEN_APP_VERSION="$version" --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
-          mv build/web build/app-web
-          flutter build web --release --pwa-strategy=none --no-pub --target lib/main_account_review.dart --base-href /pharm-d-with-hyzen/ui-review/ --dart-define=HYZEN_APP_VERSION="$version" --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
-          mkdir -p build/app-web/ui-review
-          cp -a build/web/. build/app-web/ui-review/
-          mkdir -p build/serve/pharm-d-with-hyzen
-          cp -a build/app-web/. build/serve/pharm-d-with-hyzen/
-          printf '%s\n' "${{ github.sha }}" > build/serve/pharm-d-with-hyzen/commit.txt
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Capture actual Flutter browser screens
-        run: |
-          npm install --no-save --package-lock=false playwright
-          npx playwright install --with-deps chromium
-          python3 -m http.server 8080 --directory hyzen_flutter/build/serve > /tmp/hyzen-review-server.log 2>&1 &
-          node tools/capture_account_preview.cjs
-      - name: Publish lightweight iPhone-friendly Downloads previews
-        run: |
-          preview=hyzen_flutter/build/serve/pharm-d-with-hyzen/preview
-          mkdir -p "$preview"
-          cp tools/downloads_preview.html "$preview/downloads.html"
-          cp hyzen_flutter/qa/account-redesign/{dark,light}-downloads.png "$preview/"
-          for file in downloads.html dark-downloads.png light-downloads.png; do
-            test -s "$preview/$file"
-          done
+          test -s hyzen_flutter/build/live-preview/index.html
+          test -s hyzen_flutter/build/live-preview/app/main.dart.js
+          test -s hyzen_flutter/build/live-preview/source-commit.txt
+          python3 -c "from pathlib import Path; assert '<base href=\"/pharm-d-with-hyzen/app/\">' in Path('hyzen_flutter/build/live-preview/app/index.html').read_text()"
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: account-ui-review-${{ github.sha }}
-          path: |
-            hyzen_flutter/build/serve/
-            hyzen_flutter/qa/account-redesign/
-            hyzen_flutter/lib/
-            hyzen_flutter/test/
-            hyzen_flutter/pubspec.lock
+          name: interactive-flutter-preview-${{ github.sha }}
+          path: hyzen_flutter/build/live-preview/
           if-no-files-found: error
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: hyzen_flutter/build/serve/pharm-d-with-hyzen
+          path: hyzen_flutter/build/live-preview/
 
-  # Keep the protected environment gate. Deployment still requires the exact
-  # review branch to be explicitly allowed in github-pages settings.
-  deploy-preview:
-    needs: validate-preview
+  deploy:
+    needs: build
     runs-on: ubuntu-latest
-    concurrency:
-      group: pages
-      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy reviewed browser build
+      - name: Deploy preview
         id: deployment
         uses: actions/deploy-pages@v4

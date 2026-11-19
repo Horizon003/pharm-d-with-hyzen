@@ -1,0 +1,13 @@
+- text: Professional rank
+- button "Ranking privacy"
+- group:
+  - text: Professional year 2 Small sessions. Steady progress. Build your place, one focused day at a time.
+  - radio "Week" [checked]
+  - radio "Month"
+  - radio "All time"
+  - group "You’re studying privately Your name and score are hidden. You can change this whenever you like.":
+    - button "Edit my choices"
+  - group "Your year, together":
+    - button "Refresh ranking"
+  - text: A place for your progress Your leaderboard will appear here when your profile is ready.
+  - button "How your score grows"

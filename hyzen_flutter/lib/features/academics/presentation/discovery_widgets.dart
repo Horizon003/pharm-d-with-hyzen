@@ -8,6 +8,7 @@ import '../../content/data/content_providers.dart';
 import '../../search/data/search_index.dart';
 import '../domain/models.dart';
 import 'library_screens.dart';
+import '../../../core/widgets/refinement_art.dart';
 import '../../../app/safe_nav.dart';
 
 class LibraryShortcuts extends ConsumerWidget {
@@ -57,7 +58,7 @@ class LibraryShortcuts extends ConsumerWidget {
                   style: t.textTheme.labelSmall?.copyWith(
                     fontSize: 11,
                     letterSpacing: 0,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -119,11 +120,7 @@ class SubjectDiscovery extends ConsumerWidget {
                 onTap: () => context.open(h.route),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.science_outlined,
-                      size: 23,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                    const RefinementArt(RefinementGlyph.subject, size: 36),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Tooltip(
@@ -158,11 +155,7 @@ class SubjectDiscovery extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconBadge(
-                    icon: Icons.science_rounded,
-                    color: color,
-                    size: 36,
-                  ),
+                  const RefinementArt(RefinementGlyph.subject, size: 40),
                   const SizedBox(height: 8),
                   Text(
                     h.title,

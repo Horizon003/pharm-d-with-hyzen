@@ -1,0 +1,184 @@
+    // Firebase-native study/rewards. No Functions, paid scheduler or D1.
+    function studyAdmin() { return request.auth != null && request.auth.uid == 'Vv6HtZjmUvfVACzvuyL2pFx5HR33'; }
+    function studyOwner(uid) { return request.auth != null && request.auth.uid == uid; }
+    function statePath(uid, id) { return /databases/$(database)/documents/studyUsers/$(uid)/state/$(id); }
+    function memberPath(uid) { return /databases/$(database)/documents/campusMemberships/$(uid); }
+    function publicRankPath(uid) { return /databases/$(database)/documents/professionalRanks/$(uid); }
+    function memberData(uid) { return exists(memberPath(uid)) ? get(memberPath(uid)).data : {}; }
+    function rankEligible(m) { return m.get('verified', false) == true && m.get('firebaseRankConsent', false) == true && m.get('optOut', true) == false && m.get('academicYear', 0) in [1,2,3,4,5]; }
+    function studyYear(uid) { let m = memberData(uid); return m.get('verified', false) == true && m.get('academicYear', 0) in [1,2,3,4,5] ? m.academicYear : 0; }
+    function studyDay(t) { return int((t.toMillis() + 18000000) / 86400000); }
+    function studyMonth(d) { let t = timestamp.value(d * 86400000); return t.year() * 12 + t.month(); }
+    function dayPath(uid,y,d) { return /databases/$(database)/documents/studyUsers/$(uid)/verifiedDays/$(string(y)+'_'+string(d)); }
+    function dayData(uid,y,d) { return exists(dayPath(uid,y,d)) ? get(dayPath(uid,y,d)).data : {'totalMs':0,'completed':0,'bonus':0,'lastVersion':0}; }
+    function rankPath(uid,y) { return statePath(uid, 'rank_'+string(y)); }
+    function emptyRank(y) { return {'academicYear':y,'weekKey':0,'weekPoints':0,'weekMinutes':0,'monthKey':0,'monthPoints':0,'monthMinutes':0,'totalPoints':0,'totalMinutes':0,'sourceVersion':0}; }
+    function rankData(uid,y) { return exists(rankPath(uid,y)) ? get(rankPath(uid,y)).data : emptyRank(y); }
+    function pulseDelta(a) {
+      let gap = a.at.toMillis() - a.previousAt.toMillis();
+      return a.previousActive && a.previousSession == a.session && gap >= 0 && gap <= 30000 && studyDay(a.at) == studyDay(a.previousAt) ? gap : 0;
+    }
+    function walletShape(d) {
+      return d.keys().hasOnly(['points','lastDay','streak','best','days','badges','action','milestone','updatedAt'])
+        && d.points is int && d.lastDay is int && d.streak is int && d.best is int
+        && d.days is list && d.days.size() <= 4000 && d.badges is list && d.badges.size() <= 6
+        && d.updatedAt == request.time;
+    }
+    function firstClaim(d) {
+      return walletShape(d) && d.action == 'daily' && d.points == 100 && d.lastDay == studyDay(request.time)
+        && d.streak == 1 && d.best == 1 && d.days == [studyDay(request.time)] && d.badges == [] && d.milestone == 0;
+    }
+    function dailyClaim(a,b) {
+      let today = studyDay(request.time);
+      let streak = a.lastDay == today - 1 ? a.streak + 1 : 1;
+      return b.action == 'daily' && a.lastDay < today && b.lastDay == today && b.streak == streak
+        && b.best == (a.best > streak ? a.best : streak) && b.days == a.days.concat([today]) && b.badges == a.badges
+        && b.milestone == 0 && b.points == a.points + 100 + (streak % 7 == 0 ? 200 : 0);
+    }
+    function badgeClaim(a,b) {
+      return b.action == 'achievement' && b.milestone in [5,7,14,30,60,100] && a.best >= b.milestone && !(b.milestone in a.badges)
+        && b.badges == a.badges.concat([b.milestone]) && b.points == a.points + 50
+        && b.diff(a).affectedKeys().hasOnly(['action','milestone','badges','points','updatedAt']);
+    }
+    function activityShape(b) {
+      return b.keys().hasOnly(['version','session','active','closed','at','previousAt','previousActive','previousSession','totalMs','sessionMs','deltaMs','creditDay','creditYear','completion','academicYear'])
+        && b.session is string && b.session.matches('^[a-f0-9]{32}$') && b.previousSession is string
+        && b.active is bool && b.closed is bool && b.previousActive is bool
+        && b.version is int && b.totalMs is int && b.sessionMs is int && b.deltaMs is int && b.creditDay is int
+        && b.creditYear in [0,1,2,3,4,5] && b.completion in [0,1]
+        && b.previousAt is timestamp && b.at == request.time;
+    }
+    function newActivity(uid,b) {
+      return activityShape(b) && b.version == 1 && b.active && !b.closed && !b.previousActive
+        && b.previousAt == request.time && b.previousSession == b.session && b.totalMs == 0 && b.sessionMs == 0
+        && b.deltaMs == 0 && b.creditDay == 0 && b.creditYear == 0 && b.completion == 0 && b.academicYear == studyYear(uid);
+    }
+    function dayMinutes(d) { return int(d.totalMs / 60000) > 360 ? 360 : int(d.totalMs / 60000); }
+    function dayScore(d) { return dayMinutes(d) + 2 * (d.completed > 5 ? 5 : d.completed) + d.bonus; }
+    function validDay(uid,b) {
+      let a = get(statePath(uid,'activity')).data;
+      let next = getAfter(statePath(uid,'activity')).data;
+      let old = dayData(uid,next.creditYear,next.creditDay);
+      let yesterday = dayData(uid,next.creditYear,next.creditDay-1);
+      return b.keys().hasOnly(['day','academicYear','totalMs','completed','bonus','lastVersion'])
+        && next.version == a.version + 1 && b.lastVersion == next.version && old.lastVersion < next.version
+        && b.day == next.creditDay && b.academicYear == next.creditYear
+        && b.totalMs == old.totalMs + next.deltaMs && b.completed == old.completed + next.completion
+        && b.bonus == (b.totalMs >= 900000 && yesterday.totalMs >= 900000 ? 5 : old.bonus);
+    }
+    function correctLedger(uid,y,b) {
+      let pulse = getAfter(statePath(uid,'activity')).data;
+      let oldPulse = get(statePath(uid,'activity')).data;
+      let prior = rankData(uid,y);
+      let oldDay = dayData(uid,y,pulse.creditDay);
+      let newDay = getAfter(dayPath(uid,y,pulse.creditDay)).data;
+      let points = dayScore(newDay)-dayScore(oldDay);
+      let minutes = dayMinutes(newDay)-dayMinutes(oldDay);
+      let week = int((pulse.creditDay + 3) / 7);
+      let month = studyMonth(pulse.creditDay);
+      return b.keys().hasOnly(['academicYear','weekKey','weekPoints','weekMinutes','monthKey','monthPoints','monthMinutes','totalPoints','totalMinutes','sourceVersion'])
+        && rankEligible(memberData(uid)) && y == studyYear(uid) && pulse.creditYear == y && pulse.version == oldPulse.version+1
+        && b.academicYear == y && b.sourceVersion == pulse.version && b.sourceVersion > prior.sourceVersion
+        && b.weekKey == week && b.monthKey == month
+        && b.weekPoints == (prior.weekKey == week ? prior.weekPoints : 0)+points
+        && b.weekMinutes == (prior.weekKey == week ? prior.weekMinutes : 0)+minutes
+        && b.monthPoints == (prior.monthKey == month ? prior.monthPoints : 0)+points
+        && b.monthMinutes == (prior.monthKey == month ? prior.monthMinutes : 0)+minutes
+        && b.totalPoints == prior.totalPoints+points && b.totalMinutes == prior.totalMinutes+minutes;
+    }
+    function projectedRank(uid,b) {
+      let m = getAfter(memberPath(uid)).data;
+      let path = rankPath(uid,m.academicYear);
+      let ledger = existsAfter(path) ? getAfter(path).data : emptyRank(m.academicYear);
+      return rankEligible(m) && b.keys().hasOnly(['uid','alias','verified','optOut','academicYear','weekKey','weekPoints','weekMinutes','monthKey','monthPoints','monthMinutes','totalPoints','totalMinutes','sourceVersion'])
+        && b.uid == uid && b.alias == m.get('alias','Student') && b.verified == true && b.optOut == false
+        && b.academicYear == ledger.academicYear && b.weekKey == ledger.weekKey && b.weekPoints == ledger.weekPoints && b.weekMinutes == ledger.weekMinutes
+        && b.monthKey == ledger.monthKey && b.monthPoints == ledger.monthPoints && b.monthMinutes == ledger.monthMinutes
+        && b.totalPoints == ledger.totalPoints && b.totalMinutes == ledger.totalMinutes && b.sourceVersion == ledger.sourceVersion;
+    }
+    function settledRecords(uid,b) {
+      let day = getAfter(dayPath(uid,b.creditYear,b.creditDay)).data;
+      let m = memberData(uid);
+      return (b.deltaMs == 0 && b.completion == 0) ||
+        (day.lastVersion == b.version
+        && (!rankEligible(m) || b.creditYear != m.academicYear ||
+          (getAfter(rankPath(uid,m.academicYear)).data.sourceVersion == b.version && getAfter(publicRankPath(uid)).data.sourceVersion == b.version)));
+    }
+    function updateActivity(uid,a,b) {
+      let delta = pulseDelta(a);
+      return activityShape(b) && b.at > a.at && b.version == a.version+1
+        && b.previousAt == a.at && b.previousActive == a.active && b.previousSession == a.session
+        && b.totalMs == a.totalMs+delta && b.deltaMs == delta
+        && b.sessionMs == (b.session == a.session ? a.sessionMs+delta : 0)
+        && b.creditDay == studyDay(a.at) && b.creditYear == a.academicYear && b.academicYear == studyYear(uid)
+        && (b.session == a.session || (!a.active || request.time.toMillis()-a.at.toMillis() >= 30000))
+        && (!a.closed || (b.session != a.session && b.active))
+        && (!b.closed || (!a.active && b.session == a.session && !b.active))
+        && b.completion == (b.closed && !a.closed && b.sessionMs >= 600000 ? 1 : 0)
+        && settledRecords(uid,b);
+    }
+    match /studyUsers/{uid}/state/clock {
+      allow read: if studyOwner(uid);
+      allow create,update: if studyOwner(uid) && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
+    }
+    match /studyUsers/{uid}/state/wallet {
+      allow read: if studyOwner(uid);
+      allow create: if studyOwner(uid) && firstClaim(request.resource.data);
+      allow update: if studyOwner(uid) && walletShape(request.resource.data) && (dailyClaim(resource.data,request.resource.data) || badgeClaim(resource.data,request.resource.data));
+    }
+    match /studyUsers/{uid}/state/activity {
+      allow read: if studyOwner(uid);
+      allow create: if studyOwner(uid) && newActivity(uid,request.resource.data);
+      allow update: if studyOwner(uid) && updateActivity(uid,resource.data,request.resource.data);
+    }
+    match /studyUsers/{uid}/state/{rankId} {
+      allow read: if studyOwner(uid);
+      allow create,update: if studyOwner(uid) && rankId.matches('^rank_[1-5]$') && rankId == 'rank_'+string(request.resource.data.academicYear) && correctLedger(uid,request.resource.data.academicYear,request.resource.data);
+    }
+    match /studyUsers/{uid}/verifiedDays/{dayId} {
+      allow read: if studyOwner(uid);
+      allow create,update: if studyOwner(uid) && dayId == string(request.resource.data.academicYear)+'_'+string(request.resource.data.day) && validDay(uid,request.resource.data);
+    }
+    match /studyUsers/{uid}/calendar/{id} {
+      allow read,delete: if studyOwner(uid);
+      allow create,update: if studyOwner(uid) && id.matches('^[a-zA-Z0-9_-]{1,80}$')
+        && request.resource.data.keys().hasOnly(['title','at','day','color','kind','leadMinutes','updatedAt'])
+        && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 120
+        && request.resource.data.at is string && request.resource.data.day is string && request.resource.data.day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.color is int && request.resource.data.color >= 0 && request.resource.data.color <= 4294967295
+        && request.resource.data.kind in ['Test','Exam','Event'] && request.resource.data.leadMinutes is int
+        && request.resource.data.leadMinutes >= 0 && request.resource.data.leadMinutes <= 10080 && request.resource.data.updatedAt == request.time;
+    }
+    match /studyUsers/{uid}/eventBatches/{id} {
+      allow read: if studyOwner(uid);
+      allow create: if studyOwner(uid) && request.resource.data.keys().hasOnly(['events','receivedAt'])
+        && request.resource.data.events is list && request.resource.data.events.size() > 0 && request.resource.data.events.size() <= 100 && request.resource.data.receivedAt == request.time;
+    }
+    match /professionalRanks/{uid} {
+      allow get: if studyOwner(uid) || (request.auth != null && rankEligible(memberData(request.auth.uid)) && resource.data.academicYear == studyYear(request.auth.uid) && resource.data.verified && !resource.data.optOut && rankEligible(memberData(resource.data.uid)));
+      allow list: if request.auth != null && rankEligible(memberData(request.auth.uid)) && resource.data.academicYear == studyYear(request.auth.uid) && resource.data.verified && !resource.data.optOut;
+      allow create,update: if studyOwner(uid) && projectedRank(uid,request.resource.data);
+      allow delete: if studyAdmin() || (studyOwner(uid) && !rankEligible(getAfter(memberPath(uid)).data));
+    }
+    function validRankPreferences(d) {
+      return d.alias is string && d.alias.size() > 0 && d.alias.size() <= 40 && d.optOut is bool
+        && d.firebaseRankConsent == true && d.privacyUpdatedAt == request.time;
+    }
+    match /campusMemberships/{uid} {
+      allow get: if studyAdmin() || studyOwner(uid);
+      allow list: if studyAdmin();
+      allow create,update: if studyAdmin() && request.resource.data.verified is bool && request.resource.data.academicYear is int && request.resource.data.academicYear in [1,2,3,4,5] && !existsAfter(publicRankPath(uid));
+      allow delete: if studyAdmin() && !existsAfter(publicRankPath(uid));
+      allow create: if studyOwner(uid)
+        && request.resource.data.keys().hasOnly(['verified','academicYear','alias','optOut','privacyUpdatedAt','firebaseRankConsent','requestedYear','verificationRequestedAt'])
+        && request.resource.data.verified == false && request.resource.data.academicYear in [1,2,3,4,5]
+        && validRankPreferences(request.resource.data)
+        && request.resource.data.requestedYear == request.resource.data.academicYear
+        && request.resource.data.verificationRequestedAt == request.time && !existsAfter(publicRankPath(uid));
+      allow update: if studyOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias','optOut','privacyUpdatedAt','firebaseRankConsent','requestedYear','verificationRequestedAt'])
+        && validRankPreferences(request.resource.data)
+        && (request.resource.data.diff(resource.data).affectedKeys().hasAny(['requestedYear','verificationRequestedAt'])
+            ? (resource.data.verified == false && request.resource.data.requestedYear in [1,2,3,4,5] && request.resource.data.verificationRequestedAt == request.time) : true)
+        && (!rankEligible(request.resource.data) ? !existsAfter(publicRankPath(uid)) : projectedRank(uid,getAfter(publicRankPath(uid)).data));
+    }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/refinement_art.dart';
 import '../../../core/utils/links.dart';
 import '../../content/domain/site_models.dart';
 
@@ -19,7 +20,7 @@ class _AnnouncementCarouselState extends State<AnnouncementCarousel> {
   Widget build(BuildContext context) {
     if (widget.slides.isEmpty) return const SizedBox.shrink();
     page = page.clamp(0, widget.slides.length - 1);
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     final slide = widget.slides[page];
     return GestureDetector(
       onHorizontalDragEnd: (details) {
@@ -27,13 +28,13 @@ class _AnnouncementCarouselState extends State<AnnouncementCarousel> {
         if (speed.abs() > 50) move(speed < 0 ? 1 : -1);
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: dark ? const Color(0xFF142C34) : const Color(0xFFDCEEF5),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: dark ? const Color(0xFF2B454F) : const Color(0xFFABC8D5),
+          gradient: const LinearGradient(
+            colors: [Color(0xfffff1df), Color(0xfff5eef9)],
           ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: scheme.outlineVariant),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -43,7 +44,7 @@ class _AnnouncementCarouselState extends State<AnnouncementCarousel> {
               children: [
                 const Padding(
                   padding: EdgeInsets.only(top: 4),
-                  child: Icon(Icons.campaign_rounded, size: 30),
+                  child: RefinementArt(RefinementGlyph.announcement, size: 56),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -56,15 +57,15 @@ class _AnnouncementCarouselState extends State<AnnouncementCarousel> {
                             ? slide.raw['category'].toString()
                             : 'Announcement',
                         style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         slide.text,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

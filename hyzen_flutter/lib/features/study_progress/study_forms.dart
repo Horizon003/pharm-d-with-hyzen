@@ -143,6 +143,9 @@ class _StudyFormState extends State<_StudyForm> {
       enabled: widget.existing?.enabled ?? true,
       done: widget.existing?.done ?? false,
     );
+    final allowed =
+        due == null ||
+        await StudyNotificationScheduler.instance.requestPermission();
     await widget.tracker.saveTask(task);
     await widget.tracker.flush();
     if (!mounted) return;
@@ -153,9 +156,6 @@ class _StudyFormState extends State<_StudyForm> {
       });
       return;
     }
-    final allowed =
-        !widget.reminder ||
-        await StudyNotificationScheduler.instance.requestPermission();
     if (!mounted) return;
     if (!allowed) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -167,8 +167,10 @@ class _StudyFormState extends State<_StudyForm> {
       );
     }
     final scheduleError = StudyNotificationScheduler.instance.lastError;
-    if (widget.reminder && allowed && scheduleError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reminder saved locally. $scheduleError')));
+    if (due != null && allowed && scheduleError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reminder saved locally. $scheduleError')),
+      );
     }
     Navigator.pop(context);
   }

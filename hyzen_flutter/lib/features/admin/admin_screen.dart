@@ -41,7 +41,7 @@ const adminGroups = <String, List<(String, IconData, String)>>{
     ('Section visibility', Icons.toggle_on_outlined, 'sections'),
     ('Settings', Icons.tune_rounded, 'manage/settings'),
   ],
-  'Backend': [('Connection', Icons.cloud_outlined, 'manage/connection')],
+  'Services': [('Connection', Icons.cloud_outlined, 'manage/connection')],
 };
 
 class AdminScreen extends ConsumerStatefulWidget {

@@ -4,15 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/content/data/content_providers.dart';
 import '../theme/tokens.dart';
-import 'navigation_preferences.dart';
+import 'polish_ui.dart';
+import 'soft_pill_bar.dart';
+import 'display_preferences.dart';
 
-/// Visible destinations map to the existing shell branches. Auxiliary branches
-/// keep their original indexes; they are intentionally absent from this list.
 enum DockDestination {
   home('Home', '/home', 0, Icons.home_outlined),
-  study('Study', '/study', 1, Icons.menu_book_outlined),
+  study('Study', '/study', 1, Icons.grid_view_rounded),
   office('Office Workspace', '/pdf-studio', 3, Icons.description_outlined),
-  shop('Shop', '/shop', 6, Icons.storefront_outlined),
+  shop('Shop', '/shop', 6, Icons.shopping_bag_outlined),
   downloads('Downloads', '/downloads', 4, Icons.file_download_outlined);
 
   const DockDestination(this.label, this.route, this.branchIndex, this.icon);
@@ -22,174 +22,49 @@ enum DockDestination {
   bool matches(String path) => path == route || path.startsWith('$route/');
 }
 
-/// One opaque, five-destination dock. The shell owns navigation and restores
-/// each branch's existing stack; the current route alone determines selection.
+/// Compact pill dock from the reference. Navigation stacks stay in the shell.
 class MainDock extends ConsumerWidget {
   const MainDock({super.key, required this.path, required this.onSelected});
   final String path;
   final ValueChanged<DockDestination> onSelected;
-
   static double height(BuildContext context) =>
-      48.0 + math.max(22.0, MediaQuery.textScalerOf(context).scale(11) * 2.4);
+      (48 * UiDensity.of(context)).clamp(48.0, 56.0) + 12;
   static double contentInset(BuildContext context) =>
-      height(context) * 1.25 +
+      height(context) +
       16 +
-      math.max(10.0, MediaQuery.viewPaddingOf(context).bottom);
-
+      math.max(10, MediaQuery.viewPaddingOf(context).bottom);
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(dockThemeProvider);
-    final size = ref.watch(dockSizeProvider);
-    final dark =
-        mode == 'dark' ||
-        (mode == 'follow' && Theme.of(context).brightness == Brightness.dark);
-    final ink = dark ? Colors.white : Colors.black;
-
     if (MediaQuery.viewInsetsOf(context).bottom > 0) {
       return const SizedBox.shrink();
     }
+    final selected = DockDestination.values.indexWhere((d) => d.matches(path));
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: Center(
         heightFactor: 1,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Material(
+          constraints: const BoxConstraints(maxWidth: 470),
+          child: SoftPillBar(
             key: const ValueKey('main-dock'),
-            color: dark ? Colors.black : Colors.white,
-            elevation: 3,
-            shadowColor: Colors.black26,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(HRadius.pill),
-              side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: SizedBox(
-              height: height(context) * size,
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final compact =
-                        constraints.maxWidth / 5 < 116 ||
-                        MediaQuery.textScalerOf(context).scale(11) > 13;
-                    return Row(
-                      children: [
-                        for (final destination in DockDestination.values)
-                          _DockItem(
-                            destination: destination,
-                            ink: ink,
-                            size: size,
-                            compact: compact,
-                            selected: destination.matches(path),
-                            onTap: () => onSelected(destination),
-                          ),
-                      ],
-                    );
-                  },
+            selectedIndex: selected,
+            items: [
+              for (final d in DockDestination.values)
+                SoftPillItem(
+                  key: ValueKey('dock-${d.name}'),
+                  label: d.label,
+                  shortLabel: d == DockDestination.office ? 'Office' : null,
+                  icon: HAssetIcon(switch (d) {
+                    DockDestination.home => 'icon-home',
+                    DockDestination.study => 'action-notes',
+                    DockDestination.office => 'action-scan',
+                    DockDestination.shop => 'icon-shop',
+                    DockDestination.downloads => 'action-downloads',
+                  }, size: 24),
+                  onTap: () => onSelected(d),
                 ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DockItem extends StatelessWidget {
-  const _DockItem({
-    required this.destination,
-    required this.ink,
-    required this.size,
-    required this.selected,
-    required this.compact,
-    required this.onTap,
-  });
-  final DockDestination destination;
-  final Color ink;
-  final double size;
-  final bool selected, compact;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) {
-    final reduce = MediaQuery.disableAnimationsOf(context);
-    final duration = reduce ? Duration.zero : HMotion.medium;
-    final office = destination == DockDestination.office;
-    return Expanded(
-      child: Tooltip(
-        message: destination.label,
-        excludeFromSemantics: true,
-        child: Semantics(
-          key: ValueKey('dock-${destination.name}'),
-          selected: selected,
-          button: true,
-          label: destination.label,
-          onTap: onTap,
-          child: ExcludeSemantics(
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(HRadius.pill),
-              child: AnimatedContainer(
-                duration: duration,
-                curve: HMotion.curve,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? ink.withValues(alpha: .12)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(HRadius.pill),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedSlide(
-                        offset: !reduce && selected
-                            ? const Offset(0, -.07)
-                            : Offset.zero,
-                        duration: duration,
-                        curve: HMotion.curve,
-                        child: AnimatedScale(
-                          scale: !reduce && selected
-                              ? (office ? 1.10 : 1.05)
-                              : 1,
-                          duration: duration,
-                          curve: HMotion.curve,
-                          child: Icon(
-                            destination.icon,
-                            color: ink,
-                            size: 23 * size,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            office && compact ? 'Office' : destination.label,
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10.5 * size,
-                              height: 1.15,
-                              color: ink,
-                              fontWeight: selected
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            ],
           ),
         ),
       ),
@@ -204,7 +79,7 @@ Future<void> showStudyMenu(BuildContext context) {
     barrierDismissible: true,
     barrierLabel: 'Close study menu',
     barrierColor: Colors.black12,
-    transitionDuration: const Duration(milliseconds: 160),
+    transitionDuration: HMotion.duration(context),
     transitionBuilder: (_, animation, __, child) => FadeTransition(
       opacity: animation,
       child: SlideTransition(

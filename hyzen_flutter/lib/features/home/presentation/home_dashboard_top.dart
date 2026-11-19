@@ -1,384 +1,333 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../app/providers.dart';
+import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/polish_ui.dart';
+import '../../../core/widgets/reward_art.dart';
 import '../../study_progress/study_tracker.dart';
-import '../../study_progress/campus_rank_screen.dart';
-import 'home_time_artwork.dart';
-import 'home_visuals.dart';
+import '../../study_progress/reward_controller.dart';
+import '../../study_progress/study_calendar.dart';
+import 'home_screen.dart' show homeClockProvider;
 
-const _blue = Color(0xFF174E8B);
-
-/// Native Flutter reconstruction of the approved Home dashboard summary.
 class HomeDashboardTop extends ConsumerWidget {
   const HomeDashboardTop({super.key, required this.year});
   final int? year;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final p = ref.watch(studyTrackerProvider);
-    final weeklyBoard = ref.watch(campusBoardProvider('week')).valueOrNull;
-    final rank = weeklyBoard?.mine?.rank;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final text = dark ? Colors.white : const Color(0xFF091936);
-    final percent = (p.todaySeconds / (p.dailyGoal * 60))
-        .clamp(0.0, 1.0)
-        .toDouble();
-    final progressColor = dark ? const Color(0xFF79BCFF) : _blue;
-    final heroHeight =
-        180 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 4.0);
+    final p = ref.watch(studyTrackerProvider),
+        r = ref.watch(rewardProvider),
+        t = Theme.of(context);
+    final percent = (p.todaySeconds / (p.dailyGoal * 60)).clamp(0.0, 1.0);
+    final date = DateTime.parse(r.today),
+        monday = date.subtract(Duration(days: date.weekday - 1));
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 9, 16, 0),
-          child: Material(
-            color: dark ? const Color(0xFF191A1C) : const Color(0xFFF9FBFF),
-            borderRadius: BorderRadius.circular(26),
-            elevation: dark ? 0 : 2,
-            shadowColor: dark ? Colors.black87 : Colors.black26,
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => context.push('/study-progress'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: dark
-                        ? const Color(0xFF323C4B)
-                        : const Color(0xFF9DBBDE),
-                  ),
-                  borderRadius: BorderRadius.circular(26),
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 42,
-                      height: 42,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox.expand(
-                            child: CircularProgressIndicator(
-                              value: percent,
-                              strokeWidth: 6,
-                              strokeCap: StrokeCap.round,
-                              color: progressColor,
-                              backgroundColor: dark
-                                  ? Colors.white24
-                                  : const Color(0xFFD2DFEF),
-                            ),
-                          ),
-                          Icon(
-                            Icons.menu_book_rounded,
-                            color: progressColor,
-                            size: 26,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Study Time',
-                            style: TextStyle(
-                              color: text,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              formatStudyTime(p.todaySeconds),
-                              style: TextStyle(
-                                color: text,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 54,
-                      color: dark ? Colors.white24 : const Color(0xFF9DACBF),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+        Material(
+          key: const ValueKey('home-focus-card'),
+          borderRadius: BorderRadius.circular(26),
+          clipBehavior: Clip.antiAlias,
+          color: const Color(0xffe4d9f4),
+          child: InkWell(
+            onTap: () => context.push('/study-progress'),
+            child: Ink(
+              decoration: const BoxDecoration(gradient: hFocusGradient),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LayoutBuilder(
+                    builder: (context, c) => Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.gps_fixed_rounded,
-                                size: 17,
-                                color: progressColor,
+                              Text(
+                                'Daily challenge',
+                                style: t.textTheme.headlineMedium?.copyWith(
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.1,
+                                  letterSpacing: -.7,
+                                ),
                               ),
-                              const SizedBox(width: 5),
-                              Flexible(
-                                child: Text(
-                                  'Daily Goal',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: text,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 11,
-                                  ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Study Time · ${formatStudyTime(p.todaySeconds)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
-                          Text(
-                            '${p.dailyGoal ~/ 60}h ${(p.dailyGoal % 60).toString().padLeft(2, '0')}m',
-                            style: TextStyle(
-                              color: text,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
+                        ),
+                        if (MediaQuery.textScalerOf(context).scale(1) < 1.5)
+                          HSoftArt(
+                            loop: true,
+                            enabled: ref.watch(
+                              boolPrefProvider('pref_ambient_motion'),
+                            ),
+                            child: Image.asset(
+                              'assets/reference/focus-shapes.png',
+                              key: const ValueKey('home-hero-art'),
+                              width: c.maxWidth * .28,
+                              height: 96,
+                              fit: BoxFit.contain,
+                              cacheWidth: 360,
                             ),
                           ),
-                          const SizedBox(height: 7),
-                          LinearProgressIndicator(
-                            value: percent,
-                            color: progressColor,
-                            minHeight: 5,
-                            borderRadius: BorderRadius.circular(6),
-                            backgroundColor: dark
-                                ? Colors.white24
-                                : const Color(0xFFD3E0F0),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: percent,
+                    minHeight: 4,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () => context.push('/study-streak'),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          const RewardArt(3, size: 24),
+                          const SizedBox(width: 6),
+                          Expanded(
                             child: Text(
-                              '${(percent * 100).round()}%',
-                              style: TextStyle(
-                                color: text,
-                                fontSize: 11,
+                              'Streak · ${r.streak} ${r.streak == 1 ? 'day' : 'days'}',
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w700,
+                                fontSize: 13,
                               ),
                             ),
                           ),
+                          const Icon(Icons.arrow_forward_rounded, size: 18),
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  Row(
+                    children: [
+                      for (var i = 0; i < 7; i++)
+                        Expanded(
+                          child: Semantics(
+                            label:
+                                'Day ${i + 1}, ${r.days.contains(studyDayKey(monday.add(Duration(days: i)))) ? 'claimed' : 'not claimed'}',
+                            child: InkWell(
+                              onTap: () => context.push('/study-streak'),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
+                                child: Column(
+                                  children: [
+                                    RewardArt(
+                                      3 + i,
+                                      size: 26,
+                                      claimed: r.days.contains(
+                                        studyDayKey(
+                                          monday.add(Duration(days: i)),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Day ${i + 1}',
+                                      style: const TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: _StatTile(
-                  value: '${p.currentStreak} Days',
-                  label: 'Study Streak',
-                  icon: Icons.local_fire_department_rounded,
-                  tint: const Color(0xFFFF923D),
-                  onTap: () => context.push('/study-streak'),
+        if (!r.claimedToday) ...[
+          const SizedBox(height: 8),
+          Align(
+            child: HSoftArt(
+              loop: true,
+              enabled: ref.watch(boolPrefProvider('pref_ambient_motion')),
+              child: FilledButton.icon(
+                key: const ValueKey('home-claim-streak'),
+                onPressed: () => context.push('/study-streak'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xfff4cbb5),
+                  foregroundColor: HColors.ink,
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const RewardArt(3, size: 22),
+                label: const Text(
+                  'Claim Daily Streak',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatTile(
-                  value: rank == null
-                      ? '—'
-                      : '#$rank${weeklyBoard!.cached ? '*' : ''}',
-                  label: weeklyBoard?.cached == true
-                      ? 'Saved rank'
-                      : 'Prof. Rank',
-                  icon: Icons.emoji_events_rounded,
-                  tint: const Color(0xFFE3B22E),
-                  onTap: () => context.push('/campus-rank'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatTile(
-                  value:
-                      '${p.weekSeconds ~/ 3600}h ${(p.weekSeconds ~/ 60) % 60}m',
-                  label: 'This Week',
-                  icon: Icons.track_changes_rounded,
-                  tint: progressColor,
-                  onTap: () => context.push('/study-goals'),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        HomePhaseArtwork(
-          height: heroHeight,
-          builder: (context, phase) => Stack(
-              children: [
-                Positioned.fill(
-                  child: HomeLandscape(
-                    phase: phase,
-                    height: heroHeight,
-                    key: const ValueKey('home-hero-art'),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  left: 12,
-                  right: 12,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.icon(
-                      key: const ValueKey('home-continue-study'),
-                      onPressed: () {
-                        p.start();
-                        context.go('/study');
-                      },
-                      icon: const Icon(Icons.play_arrow_rounded, size: 19),
-                      label: const Text('Continue to Study'),
-                      style: FilledButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: dark ? const Color(0xFF21588F) : _blue,
-                        elevation: dark ? 2 : 3,
-                        shadowColor: dark ? Colors.black87 : Colors.black38,
-                        shape: const StadiumBorder(),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 11,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 12,
-                  bottom: 4,
-                  child: Material(
-                    key: const ValueKey('home-professional-badge'),
-                    color: dark
-                        ? const Color(0xEE152338)
-                        : const Color(0xEFFFFFFF),
-                    borderRadius: BorderRadius.circular(20),
-                    elevation: dark ? 1 : 2,
-                    shadowColor: dark ? Colors.black87 : Colors.black26,
-                    child: InkWell(
-                      onTap: () => context.push('/profile'),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 8,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.school_outlined,
-                              size: 17,
-                              color: dark ? Colors.white : _blue,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              year == null
-                                  ? 'Your academic year'
-                                  : 'Pharm D · Year $year',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 11,
-                                color: dark
-                                    ? Colors.white
-                                    : const Color(0xFF142C4F),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-          ),
+        ],
+        const SizedBox(height: 14),
+        StudyWeekRibbon(
+          now: ref.watch(homeClockProvider)(),
+          days: p.days,
+          events: ref.watch(calendarProvider).events,
         ),
       ],
     );
   }
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.tint,
-    required this.onTap,
+class StudyWeekRibbon extends StatelessWidget {
+  const StudyWeekRibbon({
+    super.key,
+    required this.now,
+    required this.days,
+    this.events = const [],
   });
-  final String value, label;
-  final IconData icon;
-  final Color tint;
-  final VoidCallback onTap;
-
+  final List<PlannerEvent> events;
+  final DateTime now;
+  final Map<String, int> days;
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: homeDepthShadows(context, blur: 10, y: 4, opacity: .9),
-      ),
-      child: Material(
-        color: dark ? const Color(0xFF1C1D20) : const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
-        elevation: dark ? 0 : 2,
-        child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 56),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(icon, size: 19, color: tint),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          value,
-                          maxLines: 1,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 13,
-                          ),
+    final t = Theme.of(context);
+    final monday = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: now.weekday - 1));
+    return Row(
+      children: [
+        for (var i = 0; i < 7; i++) ...[
+          if (i > 0) const SizedBox(width: 4),
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                final date = monday.add(Duration(days: i)),
+                    today = i + 1 == now.weekday,
+                    dayEvents = events
+                        .where((e) => e.day == calendarDay(date))
+                        .toList();
+                final color = dayEvents.isNotEmpty
+                    ? Color(dayEvents.first.color)
+                    : today
+                    ? HColors.ink
+                    : Colors.white.withValues(alpha: .6);
+                final ink = color.computeLuminance() < .4
+                    ? Colors.white
+                    : HColors.ink;
+                final recorded = (days[studyDayKey(date)] ?? 0) >= 900;
+                return Semantics(
+                  label:
+                      '${date.day}/${date.month}, ${dayEvents.length} events. Open calendar',
+                  button: true,
+                  child: InkWell(
+                    onTap: () => context.push(
+                      '/study-calendar?date=${calendarDay(date)}',
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: today ? HColors.ink : HColors.outlineStrong,
+                          width: today ? 1.5 : .8,
                         ),
                       ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: today || recorded
+                                  ? ink
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            (MediaQuery.textScalerOf(context).scale(1) > 1.3
+                                ? ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+                                : [
+                                    'Mon',
+                                    'Tue',
+                                    'Wed',
+                                    'Thu',
+                                    'Fri',
+                                    'Sat',
+                                    'Sun',
+                                  ])[i],
+                            maxLines: 1,
+                            style: t.textTheme.labelSmall?.copyWith(
+                              color: ink,
+                              fontSize: 10,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${date.day}',
+                              style: t.textTheme.titleMedium?.copyWith(
+                                color: ink,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                          if (dayEvents.length > 1)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                for (final e in dayEvents.take(3))
+                                  Padding(
+                                    padding: const EdgeInsets.all(1),
+                                    child: Container(
+                                      width: 4,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                        color: Color(e.color),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: ink,
+                                          width: .5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  label,
-                  maxLines: 2,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 10),
-                ),
-              ],
+                  ),
+                );
+              },
             ),
           ),
-        ),
-        ),
-      ),
+        ],
+      ],
     );
   }
 }

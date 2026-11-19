@@ -16,7 +16,6 @@ import 'reader_chrome.dart';
 import '../../core/utils/links.dart';
 import '../../core/utils/media_upload.dart';
 import '../../app/providers.dart';
-import '../study_progress/study_tracker.dart';
 import '../pdf_studio/data/pdf_studio_repository.dart';
 import '../pdf_studio/data/studio_file_item.dart';
 import '../pdf_studio/presentation/studio_tools_screen.dart';
@@ -124,7 +123,6 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
     if (f != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ref.read(studyTrackerProvider).start();
         ref.read(recentProvider.notifier).touch(f);
       });
     }

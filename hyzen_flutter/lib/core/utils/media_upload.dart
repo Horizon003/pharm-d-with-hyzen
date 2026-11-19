@@ -1,3 +1,4 @@
+import '../../features/admin/data/data_files.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../widgets/photo_crop_screen.dart';
@@ -57,13 +58,7 @@ class MediaUpload {
     String name,
     String text, {
     String mime = 'text/plain',
-  }) async =>
-      await channel.invokeMethod<bool>('saveFile', {
-        'name': name,
-        'text': text,
-        'mime': mime,
-      }) ??
-      false;
+  }) => saveDataText(name, text, mime);
   static Future<bool> exportPdf(String path, String name) async =>
       exportDocument(path, name, 'application/pdf');
 

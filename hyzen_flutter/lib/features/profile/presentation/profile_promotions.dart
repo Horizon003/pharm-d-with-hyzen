@@ -82,7 +82,9 @@ class _ProfilePromotionsState extends ConsumerState<ProfilePromotions> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AspectRatio(
-          aspectRatio: 16 / 9,
+          aspectRatio: slides.any((s) => s.image?.isNotEmpty == true)
+              ? 16 / 9
+              : 3.2 / MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
           child: PageView.builder(
             itemCount: slides.length,
             onPageChanged: (value) => setState(() => _page = value),
@@ -142,7 +144,7 @@ class _ProfilePromotionsState extends ConsumerState<ProfilePromotions> {
                                   style: TextStyle(
                                     color: Colors.white70,
                                     fontSize: 10,
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w600,
                                     letterSpacing: 1.2,
                                   ),
                                 ),
@@ -155,7 +157,7 @@ class _ProfilePromotionsState extends ConsumerState<ProfilePromotions> {
                                   color: overlay
                                       ? Colors.white
                                       : theme.colorScheme.onSurface,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               if (slide.subtitle.isNotEmpty)

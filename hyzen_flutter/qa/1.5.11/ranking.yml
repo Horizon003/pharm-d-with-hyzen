@@ -1,0 +1,12 @@
+- text: Professional rank
+- button "Ranking privacy"
+- group:
+  - text: "Professional year 2 #3 Muhammad Haris"
+  - radio "Week" [checked]
+  - radio "Month"
+  - radio "All time"
+  - text: 2h 0m Study time 129 Rank points
+  - group "Your year, together":
+    - button "Refresh ranking"
+  - text: 01 Ayesha 240 min focused 259 02 Hamza 180 min focused 195 03 Muhammad Haris 120 min focused 129
+  - button "How your score grows"

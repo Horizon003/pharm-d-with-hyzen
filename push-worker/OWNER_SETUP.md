@@ -1,3 +1,8 @@
+> **Since 1.5.10:** study history, rewards, planner and professional ranking use
+> direct Firebase/Firestore. `PUSH_API_BASE` is for OneSignal notifications only.
+> The study endpoints described below are compatibility support for older APKs.
+> Use [the Firebase rollout guide](../backend/README.md) for current study sync.
+
 # Hyzen push deployment and professional rankings
 
 ## Actual state
@@ -76,7 +81,7 @@ match /campusMemberships/{uid} {
    owner-signed APK after checks. Pages also reads this variable after an approved
    merge. An empty variable produces an explicitly unconfigured test APK; a rebuild
    is required after setting the URL. Do not publish that test build as production.
-   The same URL supplies the free study sync and ranking API. Do not set the old
+   Older APKs also used this URL for study sync/ranking; current APKs use Firestore. Do not set the old
    `STUDY_API_BASE` to undeployed Cloud Functions. Admin → Push Notification Center
    → reload audiences synchronizes the verified ranking roster, including removals.
    Without the URL the Admin Center shows an explicit configuration error and the

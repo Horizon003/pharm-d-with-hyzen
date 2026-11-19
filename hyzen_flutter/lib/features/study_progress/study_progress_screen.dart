@@ -1,9 +1,16 @@
 // ignore_for_file: prefer_interpolation_to_compose_strings
 import 'package:flutter/material.dart';
+import '../../core/widgets/workspace_icons.dart';
+import '../../core/widgets/surfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'study_tracker.dart';
+import '../../core/theme/tokens.dart';
+import 'study_forms.dart';
+import 'reward_controller.dart';
+import 'campus_rank_screen.dart';
+import '../../core/widgets/reward_art.dart';
 
 class HomeStudyTracker extends ConsumerWidget {
   const HomeStudyTracker({super.key});
@@ -14,7 +21,7 @@ class HomeStudyTracker extends ConsumerWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Material(
       color: dark ? const Color(0xFF202023) : Colors.white,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => context.push('/study-progress'),
@@ -33,7 +40,7 @@ class HomeStudyTracker extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 11,
                         letterSpacing: 1.1,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -45,7 +52,7 @@ class HomeStudyTracker extends ConsumerWidget {
                 formatStudyTime(progress.todaySeconds),
                 style: const TextStyle(
                   fontSize: 26,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 9),
@@ -53,7 +60,7 @@ class HomeStudyTracker extends ConsumerWidget {
                 value: (progress.todaySeconds / (progress.dailyGoal * 60))
                     .clamp(0.0, 1.0)
                     .toDouble(),
-                color: const Color(0xFF087F76),
+                color: const Color(0xFF656565),
                 backgroundColor: dark ? Colors.white12 : Colors.black12,
                 minHeight: 5,
                 borderRadius: BorderRadius.circular(9),
@@ -82,300 +89,279 @@ class HomeStudyTracker extends ConsumerWidget {
 
 class StudyProgressScreen extends ConsumerWidget {
   const StudyProgressScreen({super.key});
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final progress = ref.watch(studyTrackerProvider);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final bg = dark ? const Color(0xFF09090A) : const Color(0xFFF4F4F5);
-    final surface = dark ? const Color(0xFF1B1B1D) : Colors.white;
-    final secondary = dark ? Colors.white70 : Colors.black54;
-
-    Widget panel(String name, Widget body) => Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+    final p = ref.watch(studyTrackerProvider),
+        reward = ref.watch(rewardProvider);
+    final board = ref.watch(campusBoardProvider('week')).valueOrNull;
+    final rank = board?.mine;
+    Widget bar(int seconds, int minutes) => LinearProgressIndicator(
+      value: (seconds / (minutes * 60)).clamp(0.0, 1.0),
+      minHeight: 4,
+      borderRadius: BorderRadius.circular(4),
+    );
+    Widget section(
+      String title,
+      String summary,
+      ControlGlyph icon,
+      Widget body,
+      Color color,
+    ) => Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: surface,
+        color: color,
         borderRadius: BorderRadius.circular(22),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            name,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+      child: ExpansionTile(
+        key: PageStorageKey(title),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        leading: ControlIcon(icon, size: 28),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(summary, style: const TextStyle(fontSize: 12)),
+        children: [body],
+      ),
+    );
+    return HBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: const Text('Study progress'),
+          leading: IconButton(
+            tooltip: 'Back',
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/home'),
           ),
-          const SizedBox(height: 14),
-          body,
-        ],
-      ),
-    );
-
-    Widget progressBar(int seconds, int goal) => LinearProgressIndicator(
-      value: (seconds / (goal * 60)).clamp(0.0, 1.0).toDouble(),
-      minHeight: 7,
-      color: const Color(0xFF087F76),
-      backgroundColor: dark ? Colors.white12 : Colors.black12,
-      borderRadius: BorderRadius.circular(12),
-    );
-
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: bg,
-        surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'Study progress',
-          style: TextStyle(fontWeight: FontWeight.w800),
         ),
-        leading: IconButton(
-          tooltip: 'Back',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/home');
-            }
-          },
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
-        children: [
-          panel(
-            'Focus timer',
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  formatStudyTime(progress.todaySeconds),
-                  key: const ValueKey('study-time'),
-                  style: const TextStyle(
-                    fontSize: 38,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  progress.cloudStatus,
-                  style: TextStyle(fontSize: 12, color: secondary),
-                ),
-                const SizedBox(height: 16),
-                if (progress.running)
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: progress.pause,
-                      icon: const Icon(Icons.pause_rounded),
-                      label: const Text('Pause study session'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: dark ? Colors.white : Colors.black,
-                        foregroundColor: dark ? Colors.black : Colors.white,
-                        minimumSize: const Size(0, 48),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: hFocusGradient,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const ControlIcon(ControlGlyph.timer, size: 32),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Focus timer',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              p.running
+                                  ? 'Reading · tracking automatically'
+                                  : p.awaitingClose
+                                  ? 'File closed · ending session in 30 seconds'
+                                  : 'Open a file to start studying',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  )
-                else
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   Text(
-                    'Study time starts automatically when you open a file.',
-                    style: TextStyle(fontSize: 12, color: secondary),
+                    formatStudyTime(p.todaySeconds),
+                    key: const ValueKey('study-time'),
+                    style: const TextStyle(
+                      fontSize: 29,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                if (progress.hasSession)
-                  TextButton.icon(
-                    onPressed: progress.stop,
-                    icon: const Icon(Icons.stop_rounded),
-                    label: const Text('Stop session'),
+                  const SizedBox(height: 8),
+                  bar(p.todaySeconds, p.dailyGoal),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Only visible, open-file reading counts. Closing the file ends your session after 30 seconds.',
+                    style: TextStyle(fontSize: 11),
                   ),
-                const Text(
-                  'Pauses in the background or after 5 minutes without interaction.',
-                  style: TextStyle(fontSize: 11),
-                ),
-                if (progress.saveError != null) Text(progress.saveError!),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    p.cloudStatus,
+                    style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  ),
+                  if (p.saveError != null) Text(p.saveError!),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          panel(
-            'Daily & weekly goals',
-            Column(
-              children: [
-                Row(
-                  children: [
-                    const Expanded(child: Text('Daily goal')),
-                    Text(
-                      (progress.todaySeconds ~/ 60).toString() +
-                          ' / ' +
-                          progress.dailyGoal.toString() +
-                          ' min',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 9),
-                progressBar(progress.todaySeconds, progress.dailyGoal),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    const Expanded(child: Text('This week')),
-                    Text(
-                      (progress.weekSeconds ~/ 60).toString() +
-                          ' / ' +
-                          progress.weeklyGoal.toString() +
-                          ' min',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 9),
-                progressBar(progress.weekSeconds, progress.weeklyGoal),
-                const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _editGoals(context, progress),
-                    icon: const Icon(Icons.tune_rounded, size: 18),
-                    label: const Text('Edit goals'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          panel(
-            'Streaks & recent breaks',
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 18,
-                  runSpacing: 12,
-                  children: [
-                    _Stat(
-                      'Current streak',
-                      progress.currentStreak.toString() + ' days',
-                      Icons.local_fire_department_outlined,
-                    ),
-                    _Stat(
-                      'Highest streak',
-                      progress.highestStreak.toString() + ' days',
-                      Icons.emoji_events_outlined,
-                    ),
-                    _Stat(
-                      'This week',
-                      (progress.weekSeconds ~/ 60).toString() + ' min',
-                      Icons.calendar_today_outlined,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Recent breaks',
+            const SizedBox(height: 12),
+            Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              color: const Color(0xffffedcf),
+              child: ListTile(
+                onTap: () => context.push('/campus-rank'),
+                leading: const RewardArt(11, size: 40),
+                title: const Text(
+                  'Professional Rank',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 8),
-                if (progress.recentBreaks.isEmpty)
-                  Text(
-                    'No breaks between tracked study days yet.',
-                    style: TextStyle(fontSize: 12, color: secondary),
-                  )
-                else
-                  for (final item in progress.recentBreaks)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 5),
-                      child: Text(
-                        item,
-                        style: TextStyle(fontSize: 12, color: secondary),
+                subtitle: Text(
+                  rank == null
+                      ? board?.status ?? 'Checking verified ranking…'
+                      : '#${rank.rank} · ${rank.minutes} verified min · ${rank.points} rank points',
+                ),
+                trailing: const Icon(Icons.arrow_forward_rounded, size: 18),
+              ),
+            ),
+            section(
+              'Daily & weekly goals',
+              '${p.todaySeconds ~/ 60}/${p.dailyGoal} min today',
+              ControlGlyph.goal,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Daily · ${p.todaySeconds ~/ 60} / ${p.dailyGoal} min'),
+                  const SizedBox(height: 8),
+                  bar(p.todaySeconds, p.dailyGoal),
+                  const SizedBox(height: 12),
+                  Text('Weekly · ${p.weekSeconds ~/ 60} / ${p.weeklyGoal} min'),
+                  const SizedBox(height: 8),
+                  bar(p.weekSeconds, p.weeklyGoal),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => _editGoals(context, p),
+                        child: const Text('Edit goals'),
+                      ),
+                      TextButton(
+                        onPressed: () => context.push('/study-goals'),
+                        child: const Text('Custom goals'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const Color(0xffffe6d2),
+            ),
+            section(
+              'Study progress',
+              '${reward.streak} claimed days · ${p.weekSeconds ~/ 60} min this week',
+              ControlGlyph.streak,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Best study streak · ${p.highestStreak} days'),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Study streaks require 15 active minutes. Daily reward claims are tracked separately.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/study-streak'),
+                    child: const Text('Daily streak & rewards'),
+                  ),
+                  const Text(
+                    'Recent study breaks',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  if (p.recentBreaks.isEmpty)
+                    const Text('No breaks between recorded study days.')
+                  else
+                    ...p.recentBreaks.map((s) => Text(s)),
+                ],
+              ),
+              const Color(0xffdfede2),
+            ),
+            section(
+              'Tasks & reminders',
+              '${p.pendingCount} tasks pending · ${p.reminders.length} reminders',
+              ControlGlyph.reminder,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Scheduled alerts appear in your phone’s notification panel when permission is enabled.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  for (final task in [...p.tasks, ...p.reminders])
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      onTap: () => showStudyForm(
+                        context,
+                        p,
+                        reminder: task.kind == 'reminder',
+                        existing: task,
+                      ),
+                      leading: task.kind == 'reminder'
+                          ? Switch(
+                              value: task.enabled,
+                              onChanged: (_) => p.toggleReminder(task.id),
+                            )
+                          : Checkbox(
+                              value: task.done,
+                              onChanged: (_) => p.toggleTask(task.id),
+                            ),
+                      title: Text(
+                        task.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          decoration: task.done
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                      subtitle: task.due == null
+                          ? null
+                          : Text(
+                              '${task.due!.day}/${task.due!.month} · ${TimeOfDay.fromDateTime(task.due!).format(context)}',
+                            ),
+                      trailing: IconButton(
+                        tooltip: 'Delete',
+                        onPressed: () => p.deleteTask(task.id),
+                        icon: const Icon(Icons.close_rounded, size: 18),
                       ),
                     ),
-                const SizedBox(height: 10),
-                Text(
-                  'At least 15 actively studied minutes count as a study day.',
-                  style: TextStyle(fontSize: 11, color: secondary),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          panel(
-            'Tasks & reminders',
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Reminder alerts appear in the in-app inbox when the app runs.',
-                  style: TextStyle(fontSize: 12, color: secondary),
-                ),
-                const SizedBox(height: 12),
-                for (final task in progress.tasks)
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Checkbox(
-                      value: task.done,
-                      onChanged: (_) => progress.toggleTask(task.id),
-                    ),
-                    title: Text(
-                      task.title,
-                      style: TextStyle(
-                        decoration: task.done
-                            ? TextDecoration.lineThrough
-                            : null,
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => showStudyForm(context, p),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add task'),
                       ),
-                    ),
-                    subtitle: task.due == null
-                        ? null
-                        : Text(
-                            'Reminder: ' +
-                                task.due!.day.toString() +
-                                '/' +
-                                task.due!.month.toString() +
-                                ' at ' +
-                                task.due!.hour.toString().padLeft(2, '0') +
-                                ':' +
-                                task.due!.minute.toString().padLeft(2, '0'),
-                            style: TextStyle(fontSize: 11, color: secondary),
-                          ),
-                    trailing: IconButton(
-                      tooltip: 'Delete task',
-                      icon: const Icon(Icons.close_rounded, size: 19),
-                      onPressed: () => progress.deleteTask(task.id),
-                    ),
+                      TextButton.icon(
+                        onPressed: () =>
+                            showStudyForm(context, p, reminder: true),
+                        icon: const Icon(
+                          Icons.notifications_none_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Reminder'),
+                      ),
+                    ],
                   ),
-                if (progress.tasks.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Text(
-                      'No tasks yet. Add your first study task.',
-                      style: TextStyle(color: secondary),
-                    ),
-                  ),
-                OutlinedButton.icon(
-                  onPressed: () => _addTask(context, progress),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Add task or reminder'),
-                ),
-              ],
+                ],
+              ),
+              Colors.white.withValues(alpha: .85),
             ),
-          ),
-          const SizedBox(height: 14),
-          panel(
-            'Professional Rank',
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.groups_outlined, size: 28),
-                const SizedBox(height: 10),
-                const Text(
-                  'Open Professional Rank for your verified leaderboard.',
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Students from all colleges compete within their verified professional year.',
-                  style: TextStyle(fontSize: 12, color: secondary),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -427,123 +413,4 @@ class StudyProgressScreen extends ConsumerWidget {
       weekly.dispose();
     }
   }
-
-  Future<void> _addTask(BuildContext context, StudyTracker tracker) async {
-    final title = TextEditingController();
-    DateTime? due;
-    try {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (sheet) => StatefulBuilder(
-          builder: (sheet, redraw) => Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              8,
-              20,
-              MediaQuery.viewInsetsOf(sheet).bottom + 20,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'New study task',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: title,
-                  autofocus: true,
-                  maxLength: 120,
-                  decoration: const InputDecoration(
-                    labelText: 'Task',
-                    hintText: 'Revise pharmacology',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.notifications_none_rounded),
-                  label: Text(
-                    due == null
-                        ? 'Set reminder date & time'
-                        : 'Reminder: ' +
-                              due!.day.toString() +
-                              '/' +
-                              due!.month.toString() +
-                              ' ' +
-                              due!.hour.toString().padLeft(2, '0') +
-                              ':' +
-                              due!.minute.toString().padLeft(2, '0'),
-                  ),
-                  onPressed: () async {
-                    final now = DateTime.now();
-                    final date = await showDatePicker(
-                      context: sheet,
-                      initialDate: now,
-                      firstDate: now.subtract(const Duration(days: 1)),
-                      lastDate: now.add(const Duration(days: 365)),
-                    );
-                    if (date == null || !sheet.mounted) return;
-                    final time = await showTimePicker(
-                      context: sheet,
-                      initialTime: TimeOfDay.now(),
-                    );
-                    if (time == null || !sheet.mounted) return;
-                    redraw(
-                      () => due = DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                        time.hour,
-                        time.minute,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {
-                      if (title.text.trim().isEmpty) return;
-                      tracker.addTask(title.text, due);
-                      Navigator.pop(sheet);
-                    },
-                    child: const Text('Save task'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    } finally {
-      title.dispose();
-    }
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat(this.name, this.value, this.icon);
-  final String name, value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 96,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 21),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-        ),
-        Text(name, style: Theme.of(context).textTheme.bodySmall),
-      ],
-    ),
-  );
 }

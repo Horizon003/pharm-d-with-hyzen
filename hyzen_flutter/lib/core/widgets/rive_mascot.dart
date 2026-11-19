@@ -51,7 +51,9 @@ class HyzenRiveMascot extends StatelessWidget {
       future: _riveAvailable,
       initialData: _riveKnown,
       builder: (context, snapshot) {
-        if (snapshot.data != true) {
+        if (snapshot.data != true ||
+            MediaQuery.disableAnimationsOf(context) ||
+            !TickerMode.of(context)) {
           return HyzenMascot(
             state: state.fallback,
             size: size,

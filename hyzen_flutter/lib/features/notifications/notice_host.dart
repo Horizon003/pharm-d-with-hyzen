@@ -7,6 +7,7 @@ import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../core/utils/links.dart';
 import '../../core/widgets/ui_kit.dart';
+import '../../core/widgets/refinement_art.dart';
 import '../content/data/content_providers.dart';
 import '../content/domain/site_models.dart';
 import '../viewer/document_flow.dart';
@@ -37,7 +38,9 @@ class _NoticeHostState extends ConsumerState<NoticeHost> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _router = ref.read(routerProvider);
-      setState(() => _routePath = _router!.routeInformationProvider.value.uri.path);
+      setState(
+        () => _routePath = _router!.routeInformationProvider.value.uri.path,
+      );
       _router!.routerDelegate.addListener(_routeChanged);
     });
   }
@@ -178,11 +181,13 @@ class _NoticeCard extends StatelessWidget {
         .toDouble()
         .clamp(0, 48)
         .toDouble();
-    final align = n.raw['align'] == 'left' ? TextAlign.left : TextAlign.center;
+    final align = n.raw['align'] == 'center'
+        ? TextAlign.center
+        : TextAlign.left;
     final font = switch (n.raw['font']) {
       'serif' => 'serif',
       'system' => null,
-      _ => 'Manrope',
+      _ => 'Outfit',
     };
     return Dialog(
       backgroundColor: card,
@@ -204,12 +209,21 @@ class _NoticeCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  n.type == 'update'
-                      ? Icons.system_update_rounded
-                      : Icons.campaign_rounded,
-                  color: accent,
-                  size: 42,
+                Row(
+                  children: [
+                    RefinementArt(
+                      n.type == 'update'
+                          ? RefinementGlyph.subject
+                          : RefinementGlyph.announcement,
+                      size: 64,
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Close notice',
+                      onPressed: onClose,
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                    ),
+                  ],
                 ),
                 if (n.image.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -229,7 +243,7 @@ class _NoticeCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 if (n.eyebrow.isNotEmpty)
                   Text(
-                    n.eyebrow.toUpperCase(),
+                    n.eyebrow,
                     textAlign: align,
                     style: TextStyle(
                       color: accent,
@@ -242,8 +256,8 @@ class _NoticeCard extends StatelessWidget {
                   textAlign: align,
                   style: TextStyle(
                     color: ink,
-                    fontSize: size + 7,
-                    fontWeight: FontWeight.w800,
+                    fontSize: size + 6,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 if ('${n.raw['version'] ?? ''}'.isNotEmpty)

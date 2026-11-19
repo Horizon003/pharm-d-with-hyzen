@@ -15,9 +15,9 @@ void main() {
   late Directory folder;
   late List<String> pages;
   setUpAll(() async {
-    final fonts = FontLoader('Manrope');
-    for (final weight in [400, 500, 600, 700, 800]) {
-      fonts.addFont(rootBundle.load('assets/fonts/Manrope-$weight.ttf'));
+    final fonts = FontLoader('Outfit');
+    for (final weight in [400, 500, 600, 700]) {
+      fonts.addFont(rootBundle.load('assets/fonts/Outfit-$weight.ttf'));
     }
     await fonts.load();
     await (FontLoader(

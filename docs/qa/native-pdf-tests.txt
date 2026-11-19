@@ -1,0 +1,9 @@
+
+com.hyzen.pharmd.ScanDraftStoreTest:........
+com.hyzen.pharmd.StudioDocumentOpsTest:.......
+
+Time: 3.501
+
+OK (15 tests)
+
+

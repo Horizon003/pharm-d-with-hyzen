@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Matches HColors.darkBackground. -->
-    <color name="splash_background">#101010</color>
+    <!-- Light-only product canvas, including dark operating-system settings. -->
+    <color name="splash_background">#FAFAFC</color>
 </resources>

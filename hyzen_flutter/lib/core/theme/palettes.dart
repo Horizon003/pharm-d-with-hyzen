@@ -49,8 +49,4 @@ final effectivePaletteProvider = Provider<String>((ref) {
   final chosen = ref.watch(paletteProvider);
   return brandPalettes.containsKey(chosen) ? chosen : 'graphite';
 });
-final paletteColorProvider = Provider<Color>(
-  (ref) =>
-      brandPalettes[ref.watch(effectivePaletteProvider)]?.$2 ??
-      brandPalettes['graphite']!.$2,
-);
+final paletteColorProvider = Provider<Color>((ref) => const Color(0xFF111111));

@@ -1,0 +1,18 @@
+- button "Notifications 1 unread"
+- text: Study 2nd Professional
+- button "Profile & settings M"
+- group:
+  - group "2nd Professional Today's study Notes, MCQs & past papers":
+    - button "Open library"
+  - group "Your libraries":
+    - button "Change year"
+  - button "Notes Notes Notes Topic-wise study notes for every subject 4 files"
+  - button "MCQs MCQs MCQs Practice MCQs, university-wise 0 files"
+  - button "Special Books & Notes Special Books & Notes Special Books & Notes Guide books, special & general notes 0 files"
+  - button "Past Papers Past Papers Past Papers Arranged past papers by university 0 files"
+  - button "Lectures Lectures Lectures Curated video lectures Video"
+- button "Home"
+- button "Study"
+- button "Office Workspace"
+- button "Shop"
+- button "Downloads"

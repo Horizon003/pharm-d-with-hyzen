@@ -35,6 +35,51 @@ class AdminRepository {
 
   DocumentReference<Map<String, dynamic>> _doc(String key) =>
       _db.collection('settings').doc(key);
+
+  Stream<List<Map<String, dynamic>>> professionalMemberships() {
+    _guard();
+    return _db
+        .collection('campusMemberships')
+        .limit(100)
+        .snapshots()
+        .map(
+          (snapshot) => [
+            for (final doc in snapshot.docs) {...doc.data(), 'uid': doc.id},
+          ],
+        );
+  }
+
+  /// Invalidate the public projection atomically when verification changes.
+  /// The owner can then restore it from their validated, private year ledger.
+  Future<void> setProfessionalVerification(
+    String uid,
+    int year,
+    bool verified,
+  ) async {
+    _guard();
+    if (!RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(uid) ||
+        year < 1 ||
+        year > 5) {
+      throw FriendlyException(
+        'Choose a valid account UID and professional year.',
+      );
+    }
+    final member = _db.collection('campusMemberships').doc(uid);
+    await _db.runTransaction((tx) async {
+      _guard();
+      final old = (await tx.get(member)).data() ?? <String, dynamic>{};
+      tx.delete(_db.collection('professionalRanks').doc(uid));
+      tx.set(member, {
+        ...old,
+        'academicYear': year,
+        'verified': verified,
+        'alias': old['alias'] ?? 'Student',
+        'optOut': old['optOut'] ?? true,
+        'verificationUpdatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   void _checkSize(Object value) {
     if (utf8.encode(jsonEncode(value)).length > 950 * 1024) {
       throw FriendlyException(
@@ -353,6 +398,7 @@ class AdminRepository {
     if (rows.isEmpty || rows.length > 2000) {
       throw FriendlyException('Choose 1 to 2,000 valid rows.');
     }
+    final batchId = legacyUid('import');
     final kinds = rows.map((r) => r.storageKey).toSet().toList();
     return _db.runTransaction((tx) async {
       _guard();
@@ -375,14 +421,26 @@ class AdminRepository {
       final oldHistory = (await tx.get(historyDoc)).data()?['value'];
       final history = oldHistory is List ? [...oldHistory] : <dynamic>[];
       var added = 0, skipped = 0;
+      final conflicts = <String>[];
       for (final k in kinds) {
         final value = values[k]!;
         final selected = rows.where((r) => r.storageKey == k);
         final result = k == 'pw_lectures_tree'
-            ? mergeLectureRows(value, selected, () => legacyUid('app'))
-            : mergeRows(value, selected, () => legacyUid('app'));
+            ? mergeLectureRows(
+                value,
+                selected,
+                () => legacyUid('app'),
+                batchId: batchId,
+              )
+            : mergeRows(
+                value,
+                selected,
+                () => legacyUid('app'),
+                batchId: batchId,
+              );
         added += result.added;
         skipped += result.skipped;
+        conflicts.addAll(result.conflicts);
         if (result.added > 0) {
           _checkSize(value);
           tx.set(docs[k]!, {
@@ -392,19 +450,72 @@ class AdminRepository {
         }
       }
       history.insert(0, {
-        'id': legacyUid('import'),
+        'id': batchId,
+        'status': 'active',
+        'touched': kinds,
         'source': 'hyzen_android',
         'files': names,
         'rows': rows.length,
         'added': added,
         'skipped': skipped,
+        'conflicts': conflicts,
         'createdAt': DateTime.now().toUtc().toIso8601String(),
       });
       tx.set(historyDoc, {
         'value': history.take(80).toList(),
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
       }, SetOptions(merge: true));
-      return MergeResult(added, skipped);
+      return MergeResult(added, skipped, conflicts);
+    });
+  }
+
+  Future<int> undoImport(String id) async {
+    _guard();
+    return _db.runTransaction((tx) async {
+      _guard();
+      final historyRef = _doc('pw_import_history');
+      final history = _importMaps((await tx.get(historyRef)).data()?['value']);
+      final item = history.where((m) => m['id'] == id).firstOrNull;
+      if (item == null || item['status'] == 'undone') {
+        throw FriendlyException(
+          'This import is already undone or unavailable.',
+        );
+      }
+      final touched = (item['touched'] as List? ?? [])
+          .whereType<String>()
+          .map(
+            (key) => switch (key) {
+              'notes' => 'pw_notes_tree',
+              'special' => 'pw_special_tree',
+              'mcqs' => 'pw_mcqs_tree',
+              'papers' => 'pw_pastpapers',
+              'lectures' => 'pw_lectures_tree',
+              _ => key,
+            },
+          )
+          .toList();
+      if (touched.isEmpty || touched.any((k) => !writableKeys.contains(k))) {
+        throw FriendlyException('This older import has no undo record.');
+      }
+      final trees = <String, List<Map<String, dynamic>>>{};
+      for (final key in touched) {
+        trees[key] = _importMaps((await tx.get(_doc(key))).data()?['value']);
+      }
+      var removed = 0;
+      for (final entry in trees.entries) {
+        removed += undoImportNodes(entry.value, id);
+        tx.set(_doc(entry.key), {
+          'value': entry.value,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        }, SetOptions(merge: true));
+      }
+      item['status'] = 'undone';
+      item['undoneAt'] = DateTime.now().toUtc().toIso8601String();
+      tx.set(historyRef, {
+        'value': history,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      }, SetOptions(merge: true));
+      return removed;
     });
   }
 }
@@ -496,3 +607,7 @@ final adminValueProvider = StreamProvider.autoDispose.family<Object?, String>((
   if (!ref.watch(isAdminProvider)) return Stream.value(null);
   return ref.watch(adminRepositoryProvider).watch(key);
 });
+
+List<Map<String, dynamic>> _importMaps(Object? raw) => raw is List
+    ? raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+    : [];

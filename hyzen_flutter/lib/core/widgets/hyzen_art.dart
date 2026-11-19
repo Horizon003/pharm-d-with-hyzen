@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 
 class HyzenArt extends StatelessWidget {
   const HyzenArt(this.name, {super.key, this.size = 160});
@@ -6,6 +7,16 @@ class HyzenArt extends StatelessWidget {
   final double size;
   @override
   Widget build(BuildContext context) {
+    if (name == 'study-kit' || name == 'office-kit') {
+      return Image.asset(
+        'assets/reference/$name.png',
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        cacheWidth: (size * 3).round(),
+        excludeFromSemantics: true,
+      );
+    }
     if (name == 'library' || name == 'downloads' || name == 'downloads-card') {
       final studying = name == 'library';
       final t = Theme.of(context);
@@ -79,10 +90,12 @@ class HyzenBanner extends StatelessWidget {
     this.eyebrow,
     this.action,
     this.actionLabel,
+    this.gradient,
   });
   final String title, subtitle, art;
   final String? eyebrow, actionLabel;
   final VoidCallback? action;
+  final Gradient? gradient;
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
@@ -90,21 +103,23 @@ class HyzenBanner extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: t.brightness == Brightness.dark
-              ? const [Color(0xFF29292D), Color(0xFF1D1D20)]
-              : const [Color(0xFFF0F0F2), Color(0xFFE7E7E9)],
-        ),
+        gradient:
+            gradient ??
+            (art == 'downloads' || art == 'downloads-card'
+                ? const LinearGradient(
+                    colors: [Color(0xFFC7DDFD), Color(0xFFAFCDFB)],
+                  )
+                : hStudyGradient),
       ),
       child: LayoutBuilder(
         builder: (context, c) {
           final hideArt = MediaQuery.textScalerOf(context).scale(1) > 1.6;
-          final artSize = (c.maxWidth * .44).clamp(120.0, 196.0);
+          final artSize = (c.maxWidth * .40).clamp(100.0, 150.0);
           final text = Padding(
             padding: EdgeInsets.fromLTRB(
               16,
               16,
-              hideArt ? 16 : c.maxWidth * .43,
+              hideArt ? 16 : artSize * .82,
               16,
             ),
             child: Column(
@@ -113,10 +128,10 @@ class HyzenBanner extends StatelessWidget {
               children: [
                 if (eyebrow != null) ...[
                   Text(
-                    eyebrow!.toUpperCase(),
+                    eyebrow!,
                     style: t.textTheme.labelSmall?.copyWith(
                       color: t.colorScheme.onSurfaceVariant,
-                      letterSpacing: .8,
+                      letterSpacing: 0,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -124,7 +139,7 @@ class HyzenBanner extends StatelessWidget {
                 Text(
                   title,
                   style: t.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     fontSize: c.maxWidth < 350 ? 19 : 21,
                     height: 1.15,
                   ),
@@ -142,10 +157,10 @@ class HyzenBanner extends StatelessWidget {
                   FilledButton(
                     onPressed: action,
                     style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, 38),
+                      minimumSize: const Size(0, 32),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                       ),
                     ),
                     child: Row(
@@ -169,9 +184,7 @@ class HyzenBanner extends StatelessWidget {
           );
           return ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: action == null
-                  ? (hideArt ? 144 : (artSize + 12).clamp(144.0, 220.0))
-                  : 188,
+              minHeight: action == null ? (hideArt ? 0 : artSize + 12) : 160,
             ),
             child: Stack(
               children: [

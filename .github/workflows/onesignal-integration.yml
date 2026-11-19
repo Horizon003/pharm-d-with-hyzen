@@ -25,6 +25,9 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+          cache-read-only: false
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.4'
@@ -97,6 +100,9 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+          cache-read-only: false
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.4'
@@ -123,8 +129,8 @@ jobs:
         run: |
           python tools/ci/prepare_gradle.py
           cd hyzen_flutter
-          flutter build apk --release --no-pub --dart-define=PUSH_API_BASE="$PUSH_API_BASE" ||
-            flutter build apk --release --no-pub --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
+          flutter build apk --release --dart-define=PUSH_API_BASE="$PUSH_API_BASE" ||
+            flutter build apk --release --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
       - name: Verify existing owner certificate
         working-directory: hyzen_flutter
         run: |

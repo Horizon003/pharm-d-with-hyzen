@@ -6,9 +6,27 @@ SHA-256. Only CI's temporary wrapper transport is changed, never Gradle's versio
 """
 import hashlib
 import os
+import re
+import shlex
+import shutil
+import subprocess
 from pathlib import Path
 import time
 import urllib.request
+
+# setup-gradle already installs and verifies the pinned official distribution.
+# Delegate CI's wrapper to it instead of downloading the same runtime again
+# through a public release-asset endpoint (which can rate-limit with HTTP 403).
+installed_gradle = shutil.which('gradle')
+if installed_gradle:
+    version = subprocess.check_output([installed_gradle, '--version'], text=True)
+    if not re.search(r'^Gradle 8\.13$', version, re.MULTILINE):
+        raise RuntimeError('Installed Gradle must be exactly 8.13')
+    wrapper_script = Path(__file__).resolve().parents[2] / 'hyzen_flutter/android/gradlew'
+    wrapper_script.write_text('#!/bin/sh\nexec ' + shlex.quote(installed_gradle) + ' "$@"\n')
+    wrapper_script.chmod(0o755)
+    print('CI wrapper delegates to setup-gradle verified Gradle 8.13', flush=True)
+    raise SystemExit(0)
 
 SHA256 = '20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78'
 SIZE = 136983045

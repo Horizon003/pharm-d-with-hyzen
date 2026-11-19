@@ -17,7 +17,7 @@ class DefaultFirebaseOptions {
         // iOS not registered yet in the existing project. Fall back to web
         // identifiers is NOT valid for native iOS; register an iOS app first.
         throw UnsupportedError(
-          'Hyzen: register this platform in Firebase project pharmawhisper-debd2 first.',
+          'This platform is not supported yet.',
         );
     }
   }

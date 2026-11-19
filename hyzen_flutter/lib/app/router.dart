@@ -1,3 +1,7 @@
+import '../features/academics/presentation/lecture_player_screen.dart';
+import '../features/admin/presentation/professional_verification_screen.dart';
+import '../features/study_progress/study_calendar.dart';
+import '../features/search/data/search_scope.dart';
 import 'package:flutter/material.dart';
 import '../features/admin/presentation/push_center.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -88,6 +92,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/study-progress',
         '/study-goals',
         '/study-streak',
+        '/study-calendar',
         '/campus-rank',
       ].contains(loc)) {
         return null;
@@ -152,6 +157,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const StudyGoalsScreen(),
       ),
       GoRoute(
+        path: '/study-calendar',
+        builder: (_, s) => StudyCalendarScreen(
+          initialDate: DateTime.tryParse(s.uri.queryParameters['date'] ?? ''),
+        ),
+      ),
+      GoRoute(
         path: '/study-streak',
         builder: (_, __) => const StudyStreakScreen(),
       ),
@@ -181,8 +192,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/search',
-                builder: (_, state) =>
-                    SearchScreen(focusSearch: state.extra == true),
+                builder: (_, state) => SearchScreen(
+                  focusSearch: state.extra == true,
+                  initialQuery: state.uri.queryParameters['q'] ?? '',
+                  initialScope:
+                      SearchScope.values
+                          .where(
+                            (s) => s.name == state.uri.queryParameters['scope'],
+                          )
+                          .firstOrNull ??
+                      SearchScope.all,
+                ),
               ),
             ],
           ),
@@ -285,6 +305,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, s) =>
             ScanPdfScreen(initialAction: s.uri.queryParameters['source']),
       ),
+      GoRoute(path: '/lecture-player', builder: (_, state) { final data = state.extra as Map<String, dynamic>? ?? {}; return LecturePlayerScreen(title: '${data['title'] ?? 'Lecture'}', url: '${data['url'] ?? ''}'); }),
       GoRoute(path: '/lectures', builder: (_, __) => const LecturesScreen()),
       GoRoute(
         path: '/notifications',
@@ -337,6 +358,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 'connection' => const AdminConnectionScreen(),
                 'data' => const AdminDataScreen(),
                 'history' => const AdminHistoryScreen(),
+                'rank-verification' => const ProfessionalVerificationScreen(),
                 'theme' => const AdminThemeScreen(),
                 'catalog' ||
                 'delivery' ||

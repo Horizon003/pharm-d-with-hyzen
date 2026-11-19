@@ -1,0 +1,17 @@
+{
+  "checks": [
+    "download csv",
+    "download json",
+    "download xlsx",
+    "mixed valid/invalid preview and import",
+    "backup contains imported content",
+    "batch undo",
+    "backup restore",
+    "layout 320",
+    "layout 768"
+  ],
+  "errors": [],
+  "source": "1971ca76ed8d02559bc7aa6f12a98773ff5f1817",
+  "fixtureOnly": true,
+  "realFlutter": true
+}

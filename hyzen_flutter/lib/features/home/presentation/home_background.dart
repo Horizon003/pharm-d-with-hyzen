@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/tokens.dart';
 
 class HomeAtmosphere extends ConsumerWidget {
   const HomeAtmosphere({super.key, required this.child, this.content = false});
@@ -7,7 +8,9 @@ class HomeAtmosphere extends ConsumerWidget {
   final bool content;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final base = Theme.of(context).scaffoldBackgroundColor;
-    return ColoredBox(color: base, child: child);
+    return DecoratedBox(
+      decoration: const BoxDecoration(gradient: hPageGradient),
+      child: child,
+    );
   }
 }

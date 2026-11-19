@@ -1,3 +1,5 @@
+import '../data/data_files.dart';
+import '../domain/import_templates.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,11 +28,24 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
   int _added = 0, _skipped = 0;
   bool _busy = false;
   String? _error;
+  String _defaultType = 'auto';
 
-  Future<void> _template() async {
+  Future<void> _template([String format = 'csv']) async {
     try {
-      final saved = await saveCsvTemplate(csvTemplate);
-      if (mounted && saved) showHSnack(context, 'CSV template saved');
+      final saved = format == 'xlsx'
+          ? await saveDataBytes(
+              'hyzen_import_template.xlsx',
+              importTemplateXlsx(),
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            )
+          : await saveDataText(
+              'hyzen_import_template.$format',
+              format == 'json' ? importTemplateJson() : importTemplateCsv(),
+              format == 'json' ? 'application/json' : 'text/csv',
+            );
+      if (mounted && saved) {
+        showHSnack(context, '${format.toUpperCase()} template saved');
+      }
     } on MissingPluginException {
       if (mounted) {
         showHSnack(
@@ -46,25 +61,30 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
     }
   }
 
-  Future<void> _choose() async {
+  Future<void> _choose({bool reuse = false}) async {
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final files = await pickCsvFiles();
+      final files = reuse ? _files : await pickCsvFiles();
       if (files.isEmpty) return;
       final rows = <ImportRow>[], errors = <String>[];
       for (final f in files) {
-        final p = validateImport(f.text, f.name);
+        if (f.error != null) {
+          errors.add(f.error!);
+          continue;
+        }
+        final p = validateImport(f.text, f.name, defaultType: _defaultType);
         rows.addAll(p.rows);
         errors.addAll(p.errors);
       }
       if (rows.length > 2000) {
         errors.add('Select at most 2,000 rows in one import.');
+        rows.clear();
       }
       var added = 0, skipped = 0;
-      if (errors.isEmpty) {
+      if (rows.isNotEmpty) {
         for (final key in rows.map((r) => r.storageKey).toSet()) {
           final selected = rows.where((r) => r.storageKey == key);
           final kind = selected.first.kind;
@@ -83,6 +103,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
               : mergeRows(tree, selected, () => 'preview-${sequence++}');
           added += result.added;
           skipped += result.skipped;
+          errors.addAll(result.conflicts);
         }
       }
       if (mounted) {
@@ -166,7 +187,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
     }
     final preview = _preview;
     return TabPage(
-      title: 'Bulk CSV import',
+      title: 'Bulk import',
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: HSpace.screen),
@@ -174,10 +195,26 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
             children: [
               // Template stays at the top, above file selection.
               HButton(
-                label: 'Download CSV template',
+                label: 'CSV template',
                 icon: Icons.file_download_outlined,
                 onPressed: _busy ? null : _template,
                 outlined: true,
+              ),
+              const Gap(HSpace.sm),
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _template('json'),
+                    icon: const Icon(Icons.data_object_rounded, size: 18),
+                    label: const Text('JSON template'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _template('xlsx'),
+                    icon: const Icon(Icons.table_view_rounded, size: 18),
+                    label: const Text('Excel template'),
+                  ),
+                ],
               ),
               const Gap(HSpace.md),
               const HeroPanel(
@@ -189,7 +226,36 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
               ),
               const Gap(HSpace.md),
               const Text(
-                'Use UTF-8 CSV. Libraries: notes, mcqs, special, papers. Existing folders are matched by name; duplicate links within the same topic are skipped. Nothing is saved until you tap Import.',
+                'Use the website’s CSV, JSON or Excel templates. Sheets and resource types are detected automatically. Review valid rows, skipped duplicates and errors before importing.',
+              ),
+              const Gap(HSpace.md),
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                initialValue: _defaultType,
+                decoration: const InputDecoration(labelText: 'Resource type'),
+                items: [
+                  for (final kind in [
+                    'auto',
+                    'notes',
+                    'special',
+                    'mcqs',
+                    'papers',
+                    'lectures',
+                  ])
+                    DropdownMenuItem(
+                      value: kind,
+                      child: Text(kind == 'auto' ? 'Auto-detect' : kind),
+                    ),
+                ],
+                onChanged: _busy
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _defaultType = value ?? 'auto';
+                          _preview = null;
+                        });
+                        if (_files.isNotEmpty) _choose(reuse: true);
+                      },
               ),
               const Gap(HSpace.md),
               HButton(
@@ -219,7 +285,7 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
                 const Gap(HSpace.md),
                 if (preview.errors.isNotEmpty) ...[
                   Text(
-                    '${preview.errors.length} problems to fix',
+                    '${preview.errors.length} invalid rows will be skipped',
                     style: const TextStyle(
                       color: HColors.error,
                       fontWeight: FontWeight.bold,
@@ -234,11 +300,13 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
                     const Text(
                       'More errors exist. Correct these and select the files again.',
                     ),
-                ] else ...[
+                ],
+                if (preview.rows.isNotEmpty) ...[
                   HeroPanel(
                     eyebrow: 'Import preview',
                     title: '$_added new files',
-                    subtitle: '$_skipped duplicate links will be skipped.',
+                    subtitle:
+                        '$_skipped duplicate links will be skipped. Conflicting lecture links are excluded.',
                     icon: Icons.fact_check_outlined,
                   ),
                   const Gap(HSpace.md),
@@ -247,7 +315,8 @@ class _BulkImportScreenState extends ConsumerState<BulkImportScreen> {
                       icon: Icons.picture_as_pdf_outlined,
                       color: HColors.primary,
                       title: row.title,
-                      subtitle: '${row.kind.title} · ${row.labels.join(' › ')}',
+                      subtitle:
+                          '${row.lecture ? 'Lectures' : row.kind.title} · ${row.labels.join(' › ')}',
                       trailing: const SizedBox.shrink(),
                     ),
                   if (preview.rows.length > 8)

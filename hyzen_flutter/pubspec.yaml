@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.5.4+13
+version: 1.5.11+20
 
 environment:
   sdk: ^3.9.2
@@ -60,6 +60,14 @@ dependencies:
   rive: ^0.13.20
 
 dev_dependencies:
+  # Explicit plugin registration for the opt-in browser/emulator SDK test.
+  flutter_web_plugins:
+    sdk: flutter
+  firebase_core_web: 2.24.0
+  firebase_auth_web: 5.13.2
+  cloud_firestore_web: 4.3.2
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
 
@@ -83,13 +91,35 @@ flutter:
 
   assets:
     - assets/home/
-    - assets/home_backgrounds/
     - assets/auth/
     - assets/brand/
     - assets/illustrations/
     - assets/mascot/
+    - assets/reference/
+    - assets/fonts/Poppins-OFL.txt
+    - assets/fonts/Outfit-OFL.txt
 
   fonts:
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-400.ttf
+          weight: 400
+        - asset: assets/fonts/Outfit-500.ttf
+          weight: 500
+        - asset: assets/fonts/Outfit-600.ttf
+          weight: 600
+        - asset: assets/fonts/Outfit-700.ttf
+          weight: 700
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-400.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-500.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-600.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-700.ttf
+          weight: 700
     - family: Manrope
       fonts:
         - asset: assets/fonts/Manrope-400.ttf

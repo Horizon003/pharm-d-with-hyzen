@@ -1,0 +1,5 @@
+{
+  "errors": [],
+  "queryRetained": true,
+  "description": "Actual Flutter web fixture using normal canvas input, no production backend writes; browser/software rendering, not native FPS evidence."
+}

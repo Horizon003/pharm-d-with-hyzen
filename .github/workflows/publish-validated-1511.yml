@@ -1,0 +1,156 @@
+name: Publish validated Android 1.5.11
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        description: Successful signed build and install-validation run
+        required: true
+      profile_run:
+        description: Successful native frame-timing run
+        required: true
+      firebase_run:
+        description: Successful Firebase rules and actual Flutter SDK verification run
+        required: true
+      publish:
+        description: Publish the verified APK and evidence
+        type: boolean
+        default: false
+  push:
+    branches: [work/monochrome-motion-1.5.5]
+    paths: ['.github/workflows/publish-validated-1511.yml']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: publish-validated-1511
+  cancel-in-progress: false
+jobs:
+  validate-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m py_compile tools/ci/stage_install_evidence_1511.py
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RUN: ${{ inputs.build_run }}
+      PROFILE_RUN: ${{ inputs.profile_run }}
+      FIREBASE_RUN: ${{ inputs.firebase_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require successful build, update/startup and profile checks
+        id: validation
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          repo = os.environ['GITHUB_REPOSITORY']
+          def get(path):
+              req = urllib.request.Request('https://api.github.com/repos/' + repo + path,
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(req) as response: return json.load(response)
+          for key in ['BUILD_RUN', 'PROFILE_RUN', 'FIREBASE_RUN']:
+              assert os.environ[key].isdigit(), key
+          firebase = get('/actions/runs/' + os.environ['FIREBASE_RUN'])
+          assert firebase['path'].startswith('.github/workflows/firebase-native-sync.yml')
+          assert firebase['conclusion'] == 'success', firebase['conclusion']
+          build = get('/actions/runs/' + os.environ['BUILD_RUN'])
+          assert firebase['head_sha'] == build['head_sha'], 'Firebase verification must match the build source'
+
+          jobs = get('/actions/runs/' + os.environ['BUILD_RUN'] + '/jobs?per_page=100')['jobs']
+          results = {j['name']: j['conclusion'] for j in jobs}
+          assert results.get('build') == results.get('install-smoke') == 'success', results
+          # Build/install must pass; a failed earlier profile/publication is replaced by the verified profile run below.
+          assert build['status'] == 'completed', build['status']
+          profile = get('/actions/runs/' + os.environ['PROFILE_RUN'])
+          assert profile['conclusion'] == 'success', profile['conclusion']
+          assert profile['status'] == 'completed', profile['status']
+          assert build['path'].startswith('.github/workflows/release-1511.yml')
+          assert profile['path'].startswith(('.github/workflows/native-profile-155.yml','.github/workflows/release-1511.yml'))
+          profile_jobs = get('/actions/runs/' + os.environ['PROFILE_RUN'] + '/jobs?per_page=100')['jobs']
+          assert any(j['name']=='native-profile' and j['conclusion']=='success' for j in profile_jobs)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('source=' + build['head_sha'] + '\n')
+              output.write('profile_source=' + profile['head_sha'] + '\n')
+          print('Signed build, update/native/startup checks and native profiling passed')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-release-1511
+          path: release
+          run-id: ${{ inputs.build_run }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: reference-native-profile
+          path: native-profile
+          run-id: ${{ inputs.profile_run }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-1511-install-logs
+          path: install-validation
+          run-id: ${{ inputs.build_run }}
+          github-token: ${{ github.token }}
+      - name: Verify the exact binary and unchanged application source
+        env:
+          BUILT_SOURCE: ${{ steps.validation.outputs.source }}
+          PROFILE_SOURCE: ${{ steps.validation.outputs.profile_source }}
+        run: |
+          set -euo pipefail
+          (cd release && sha256sum --check SHA256SUMS.txt)
+          grep -Fxq "Source commit: $BUILT_SOURCE" release/provenance.txt
+          git diff --exit-code "$BUILT_SOURCE" HEAD -- hyzen_flutter/lib hyzen_flutter/android hyzen_flutter/assets hyzen_flutter/pubspec.yaml hyzen_flutter/pubspec.lock
+          git diff --exit-code "$BUILT_SOURCE" "$PROFILE_SOURCE" -- hyzen_flutter/lib hyzen_flutter/android hyzen_flutter/assets hyzen_flutter/pubspec.yaml hyzen_flutter/pubspec.lock
+          signer=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$signer" verify --print-certs release/PharmD-With-Hyzen-1.5.11.apk > verified-signature.txt
+          grep -qi '3fd902d131ae56d8de4792c9f5953759e2b375e32bcad8f57f7ef5c0ab887f83' verified-signature.txt
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)
+          "$aapt" dump badging release/PharmD-With-Hyzen-1.5.11.apk > release/apk-metadata.txt
+          grep -q "name='com.hyzen.pharmd' versionCode='20' versionName='1.5.11'" release/apk-metadata.txt
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from zipfile import ZipFile
+          with ZipFile('release/PharmD-With-Hyzen-1.5.11.apk') as apk:
+              for abi in ['armeabi-v7a','arm64-v8a','x86_64']:
+                  assert f'lib/{abi}/libflutter.so' in apk.namelist(), abi
+          paths = list(Path('native-profile').rglob('frame-timings.json'))
+          assert len(paths) == 1, paths
+          metrics = json.loads(paths[0].read_text())
+          for scenario in ['tab_navigation','home_scroll','route_transitions','pdf_open','ambient_hero']:
+              assert metrics[scenario]['frame_count'] > 0, scenario
+              sample = metrics[scenario]
+              print('::notice title=Profile ' + scenario + '::' + json.dumps({
+                  'frames': sample['frame_count'],
+                  'ui_p90_ms': sample['90th_percentile_frame_build_time_millis'],
+                  'raster_p90_ms': sample['90th_percentile_frame_rasterizer_time_millis'],
+                  'ui_over_budget': sample['missed_frame_build_budget_count'],
+                  'raster_over_budget': sample['missed_frame_rasterizer_budget_count'],
+              }))
+          print('::notice title=APK checksum::' + Path('release/SHA256SUMS.txt').read_text().strip())
+          print('Certificate, metadata, architectures and nonempty native frame samples verified')
+          PY
+      - name: Publish APK with actual performance limitations
+        env:
+          BUILT_SOURCE: ${{ steps.validation.outputs.source }}
+        run: |
+          python3 tools/ci/stage_profile_evidence.py native-profile release
+          python3 tools/ci/stage_install_evidence_1511.py install-validation release "$BUILT_SOURCE" "$BUILD_RUN" "$PROFILE_RUN"
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+          with zipfile.ZipFile('release/flutter-screenshots.zip','w',zipfile.ZIP_DEFLATED) as archive:
+              for root, prefix in [(Path('native-profile'),'native'),(Path('hyzen_flutter/qa/1.5.11'),'flutter-1.5.11')]:
+                  for path in root.rglob('*.png'):
+                      archive.write(path, prefix+'/'+str(path.relative_to(root)))
+          PY
+          if gh release view v1.5.11-20 >/dev/null 2>&1; then
+            gh release upload v1.5.11-20 release/* --clobber
+          else
+            gh release create v1.5.11-20 release/* --target "$GITHUB_SHA" --title 'PHARM D WITH HYZEN 1.5.11 — Study Room & Ranking' --notes-file docs/release-1.5.11.md --prerelease --latest=false
+          fi

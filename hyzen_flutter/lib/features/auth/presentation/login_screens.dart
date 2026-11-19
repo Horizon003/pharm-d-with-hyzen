@@ -9,6 +9,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/surfaces.dart';
+import '../../../core/widgets/refinement_art.dart';
 
 /// Shared scaffold for auth forms: persistent top bar with Back, keyboard-safe scroll.
 class AuthScaffold extends StatelessWidget {
@@ -83,6 +84,11 @@ class _PasswordFieldState extends State<PasswordField> {
       controller: widget.controller,
       focusNode: widget.focusNode,
       obscureText: _obscure,
+      style: const TextStyle(
+        fontSize: 16,
+        height: 1.4,
+        fontWeight: FontWeight.w500,
+      ),
       enableSuggestions: false,
       autocorrect: false,
       autofillHints: [widget.autofill],
@@ -94,9 +100,15 @@ class _PasswordFieldState extends State<PasswordField> {
         labelText: widget.label,
         helperText: widget.helper,
         helperMaxLines: 2,
-        prefixIcon: const Icon(Icons.lock_outline_rounded),
+        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 19),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 18,
+        ),
         suffixIcon: IconButton(
           tooltip: _obscure ? 'Show password' : 'Hide password',
+          iconSize: 20,
+          padding: const EdgeInsets.all(12),
           icon: Icon(
             _obscure
                 ? Icons.visibility_outlined
@@ -168,172 +180,188 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         onLogin: () => setState(() => _showForm = true),
       );
     }
-    final heroHeight = (MediaQuery.sizeOf(context).height * .32).clamp(
-      220.0,
-      310.0,
-    );
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+    return HBackground(
       child: Scaffold(
-        backgroundColor: t.colorScheme.surface,
+        backgroundColor: Colors.transparent,
         resizeToAvoidBottomInset: true,
-        body: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        body: SafeArea(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
-              child: Stack(
-                children: [
-                  SizedBox(
-                    height: heroHeight + 32,
-                    width: double.infinity,
-                    child: Image.asset(
-                      'assets/auth/login_panda.webp',
-                      key: const ValueKey('login-panda-hero'),
-                      fit: BoxFit.cover,
-                      semanticLabel:
-                          'Hyzen panda welcoming you to the pharmacy library',
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        AuthBackButton(
+                          onPressed: () => setState(() {
+                            _showForm = false;
+                            _error = null;
+                            _pw.clear();
+                          }),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'PHARM D WITH HYZEN',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
+                    const SizedBox(height: 20),
+                    Container(
+                      key: const ValueKey('login-panda-hero'),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xfff5dfc9), Color(0xffe9e2f6)],
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: LayoutBuilder(
+                        builder: (context, c) => Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Material(
-                              color: Colors.white.withValues(alpha: .95),
-                              shape: const CircleBorder(),
-                              child: IconButton(
-                                tooltip: 'Back',
-                                color: Colors.black,
-                                icon: const Icon(Icons.arrow_back_rounded),
-                                onPressed: () => setState(() {
-                                  _showForm = false;
-                                  _error = null;
-                                  _pw.clear();
-                                }),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Your study space',
+                                    style: t.textTheme.labelLarge,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Welcome back',
+                                    style: t.textTheme.headlineMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Your notes, focus and progress.\nAll in one familiar place.',
+                                  ),
+                                ],
                               ),
                             ),
-                            const Spacer(),
-                            const HyzenBrandIcon(),
+                            const SizedBox(width: 8),
+                            RefinementArt(
+                              RefinementGlyph.panda,
+                              size: c.maxWidth < 290 ? 86 : 120,
+                            ),
                           ],
                         ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(top: heroHeight),
-                    child: Container(
+                    const SizedBox(height: 24),
+                    Container(
                       key: const ValueKey('login-form-panel'),
+                      padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: t.colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(32),
-                        ),
+                        color: Colors.white.withValues(alpha: .85),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: const Color(0xffe5e0df)),
                       ),
-                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-                      child: SafeArea(
-                        top: false,
-                        child: Form(
-                          key: _form,
-                          child: AutofillGroup(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text(
-                                  'Welcome to PHARM D WITH HYZEN',
-                                  style: t.textTheme.headlineSmall?.copyWith(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.2,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Log in to continue your Pharm-D journey.',
-                                  style: t.textTheme.bodyMedium?.copyWith(
-                                    color: t.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: HSpace.xl),
-                                if (_error != null) ...[
-                                  _ErrorBanner(message: _error!),
-                                  const SizedBox(height: HSpace.md),
-                                ],
-                                TextFormField(
-                                  controller: _email,
-                                  keyboardType: TextInputType.emailAddress,
-                                  textInputAction: TextInputAction.next,
-                                  autofillHints: const [
-                                    AutofillHints.email,
-                                    AutofillHints.username,
-                                  ],
-                                  autocorrect: false,
-                                  validator: Validators.email,
-                                  autovalidateMode:
-                                      AutovalidateMode.onUserInteraction,
-                                  onFieldSubmitted: (_) =>
-                                      _pwFocus.requestFocus(),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Email',
-                                    prefixIcon: Icon(
-                                      Icons.alternate_email_rounded,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: HSpace.md),
-                                PasswordField(
-                                  controller: _pw,
-                                  focusNode: _pwFocus,
-                                  validator: Validators.loginPassword,
-                                  onSubmitted: (_) => _submit(),
-                                ),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () => context.push(
-                                      '/forgot-password',
-                                      extra: _email.text.trim(),
-                                    ),
-                                    child: const Text('Forgot password?'),
-                                  ),
-                                ),
-                                const SizedBox(height: HSpace.xs),
-                                HButton(
-                                  label: 'Log in',
-                                  loading: _busy,
-                                  onPressed: _submit,
-                                ),
-                                const SizedBox(height: HSpace.lg),
-                                Wrap(
-                                  alignment: WrapAlignment.center,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    Text(
-                                      'New to PHARM D WITH HYZEN?',
-                                      style: t.textTheme.bodyMedium,
-                                    ),
-                                    TextButton(
-                                      onPressed: () => context.pushReplacement(
-                                        '/register/personal',
-                                      ),
-                                      child: const Text('Create account'),
-                                    ),
-                                  ],
-                                ),
+                      child: Form(
+                        key: _form,
+                        child: AutofillGroup(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Log in to your account',
+                                style: t.textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 20),
+                              if (_error != null) ...[
+                                _ErrorBanner(message: _error!),
+                                const SizedBox(height: 16),
                               ],
-                            ),
+                              TextFormField(
+                                controller: _email,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                autofillHints: const [
+                                  AutofillHints.email,
+                                  AutofillHints.username,
+                                ],
+                                autocorrect: false,
+                                validator: Validators.email,
+                                autovalidateMode:
+                                    AutovalidateMode.onUserInteraction,
+                                onFieldSubmitted: (_) =>
+                                    _pwFocus.requestFocus(),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  height: 1.4,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+                                  hintText: 'you@example.com',
+                                  prefixIcon: Icon(
+                                    Icons.alternate_email_rounded,
+                                    size: 19,
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 18,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              PasswordField(
+                                controller: _pw,
+                                focusNode: _pwFocus,
+                                validator: Validators.loginPassword,
+                                onSubmitted: (_) => _submit(),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () => context.push(
+                                    '/forgot-password',
+                                    extra: _email.text.trim(),
+                                  ),
+                                  child: const Text('Forgot password?'),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              HButton(
+                                label: 'Log in',
+                                icon: Icons.arrow_forward_rounded,
+                                loading: _busy,
+                                onPressed: _submit,
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 14),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Text('New to Hyzen?'),
+                        TextButton(
+                          onPressed: () =>
+                              context.pushReplacement('/register/personal'),
+                          child: const Text('Create account'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -341,6 +369,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
+}
+
+class AuthBackButton extends StatelessWidget {
+  const AuthBackButton({super.key, required this.onPressed});
+  final VoidCallback onPressed;
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 48,
+    child: Center(
+      child: Material(
+        color: Colors.white.withValues(alpha: .8),
+        borderRadius: BorderRadius.circular(12),
+        child: IconButton(
+          tooltip: 'Back',
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.arrow_back_rounded, size: 19),
+          onPressed: onPressed,
+        ),
+      ),
+    ),
+  );
 }
 
 class _ErrorBanner extends StatelessWidget {
@@ -512,56 +562,92 @@ class AccountChoiceScreen extends StatelessWidget {
   const AccountChoiceScreen({super.key, required this.onLogin});
   final VoidCallback onLogin;
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(
-          onPressed: () =>
-              context.canPop() ? context.pop() : context.go('/welcome'),
-        ),
-      ),
+  Widget build(BuildContext context) => HBackground(
+    child: Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(24),
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Image.asset(
-                    'assets/auth/login_panda.webp',
-                    height: 210,
-                    fit: BoxFit.cover,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: AuthBackButton(
+                      onPressed: () => context.canPop()
+                          ? context.pop()
+                          : context.go('/welcome'),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Welcome to PHARM D WITH HYZEN',
-                  style: theme.textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Choose how you want to continue.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: onLogin,
-                  child: const Text('Already a user? Log in'),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: () => context.push('/register/personal'),
-                  child: const Text('Create account'),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xffffe8d0), Color(0xffe9e5f6)],
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'PHARM D WITH HYZEN',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Center(
+                          child: RefinementArt(
+                            RefinementGlyph.panda,
+                            size: 190,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'A little focus.\nA brighter future.',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Build a study rhythm that feels like yours.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Make yourself at home',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Keep learning with your notes, resources and progress.',
+                  ),
+                  const SizedBox(height: 20),
+                  HButton(
+                    label: 'Already a user? Log in',
+                    onPressed: onLogin,
+                    icon: Icons.arrow_forward_rounded,
+                  ),
+                  const SizedBox(height: 8),
+                  HButton(
+                    label: 'Create account',
+                    outlined: true,
+                    onPressed: () => context.push('/register/personal'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }

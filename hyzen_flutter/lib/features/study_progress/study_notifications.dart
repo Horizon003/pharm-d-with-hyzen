@@ -39,7 +39,7 @@ class StudyNotificationScheduler {
     try {
       await _plugin.initialize(
         const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          android: AndroidInitializationSettings('ic_study_notification'),
           iOS: DarwinInitializationSettings(
             requestSoundPermission: false,
             requestAlertPermission: false,
@@ -135,6 +135,7 @@ class StudyNotificationScheduler {
             android: AndroidNotificationDetails(
               'hyzen_study_v1',
               'Study and task reminders',
+              icon: 'ic_study_notification',
               channelDescription: 'Your scheduled study goals and tasks',
               importance: Importance.high,
               priority: Priority.high,
@@ -211,6 +212,7 @@ class StudyNotificationScheduler {
         android: AndroidNotificationDetails(
           'hyzen_study_v1',
           'Study and task reminders',
+          icon: 'ic_study_notification',
           channelDescription: 'Your scheduled study goals and tasks',
           importance: Importance.high,
           priority: Priority.high,

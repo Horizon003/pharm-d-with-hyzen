@@ -1,57 +1,22 @@
-import 'dart:async';
-import 'dart:js_interop';
+import 'data_files.dart' as raw;
 import '../domain/import_formats.dart';
 import 'package:web/web.dart' as web;
 
 class SelectedCsv {
-  const SelectedCsv(this.name, this.text);
+  const SelectedCsv(this.name, this.text, [this.error]);
   final String name, text;
+  final String? error;
 }
 
-Future<List<SelectedCsv>> pickCsvFiles() {
-  final result = Completer<List<SelectedCsv>>();
-  final input = web.HTMLInputElement()
-    ..type = 'file'
-    ..accept = '.csv,.json,.xlsx'
-    ..multiple = true;
-  input.addEventListener(
-    'cancel',
-    ((web.Event _) {
-      if (!result.isCompleted) result.complete([]);
-    }).toJS,
-  );
-  input.addEventListener(
-    'change',
-    ((web.Event _) {
-      () async {
-        try {
-          final files = input.files;
-          final selected = <SelectedCsv>[];
-          if ((files?.length ?? 0) > 20) {
-            throw StateError('Choose at most 20 CSV files.');
-          }
-          for (var i = 0; i < (files?.length ?? 0); i++) {
-            final file = files!.item(i)!;
-            if (file.size > 4 * 1024 * 1024) {
-              throw StateError('Each CSV must be 4 MB or smaller.');
-            }
-            final buffer = await file.arrayBuffer().toDart;
-            selected.add(
-              SelectedCsv(
-                file.name,
-                dataFileCsv(file.name, buffer.toDart.asUint8List()),
-              ),
-            );
-          }
-          if (!result.isCompleted) result.complete(selected);
-        } catch (e, st) {
-          if (!result.isCompleted) result.completeError(e, st);
-        }
-      }();
-    }).toJS,
-  );
-  input.click();
-  return result.future;
+Future<List<SelectedCsv>> pickCsvFiles() async {
+  final files = await raw.pickDataFiles();
+  return files.map((file) {
+    try {
+      return SelectedCsv(file.name, dataFileCsv(file.name, file.bytes));
+    } catch (error) {
+      return SelectedCsv(file.name, '', '${file.name}: $error');
+    }
+  }).toList();
 }
 
 Future<bool> saveCsvTemplate(String text) async {

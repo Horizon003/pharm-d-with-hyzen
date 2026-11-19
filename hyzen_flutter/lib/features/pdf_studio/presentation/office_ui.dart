@@ -1,10 +1,12 @@
 import 'dart:typed_data';
+import '../../../core/widgets/workspace_icons.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
+import '../../../core/theme/tokens.dart';
 import '../../../core/config/brand.dart';
 import '../../../core/widgets/profile_avatar.dart';
 import '../../notifications/notifications_screen.dart';
@@ -15,23 +17,21 @@ import '../data/studio_pdf_engine.dart';
 /// Neutral document surfaces matching the home and study hierarchy.
 class OfficeColors {
   OfficeColors._();
-  static const blue = Color(0xFF1473E6);
-  static const navy = Color(0xFF0B3A8F);
+  static const blue = Color(0xFF737373);
+  static const navy = Color(0xFF333333);
   static bool dark(BuildContext c) => Theme.of(c).brightness == Brightness.dark;
   static Color canvas(BuildContext c) =>
-      dark(c) ? const Color(0xFF1B1B1D) : const Color(0xFFEEF0F3);
-  static Color page(BuildContext c) => dark(c) ? Colors.black : Colors.white;
-  static Color bar(BuildContext c) => dark(c) ? Colors.black : Colors.white;
-  static Color sheet(BuildContext c) =>
-      dark(c) ? const Color(0xFF1C1C1E) : Colors.white;
+      Theme.of(c).colorScheme.surfaceContainer;
+  static Color page(BuildContext c) => HColors.background;
+  static Color bar(BuildContext c) => Theme.of(c).scaffoldBackgroundColor;
+  static Color sheet(BuildContext c) => Theme.of(c).colorScheme.surface;
   static Color raised(BuildContext c) =>
-      dark(c) ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F4);
-  static Color ink(BuildContext c) =>
-      dark(c) ? Colors.white : const Color(0xFF1C1C1E);
+      Theme.of(c).colorScheme.surfaceContainer;
+  static Color ink(BuildContext c) => Theme.of(c).colorScheme.onSurface;
   static Color muted(BuildContext c) =>
-      dark(c) ? const Color(0xFF9A9AA0) : const Color(0xFF6E6E73);
+      Theme.of(c).colorScheme.onSurfaceVariant;
   static Color divider(BuildContext c) =>
-      dark(c) ? const Color(0xFF2C2C2E) : const Color(0xFFE3E3E8);
+      Theme.of(c).colorScheme.outlineVariant;
 }
 
 const _months = [
@@ -99,7 +99,7 @@ class OfficeBrandHeader extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: OfficeColors.ink(context),
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       fontSize: 16.5,
                       letterSpacing: -.1,
                     ),
@@ -134,7 +134,13 @@ class OfficeBrandHeader extends ConsumerWidget {
                               ),
                             ),
                             child: ProfileAvatar(
-                              photoUrl: p?.photoUrl,
+                              photoUrl: ProfileAvatar.resolveUrl(
+                                p?.photoUrl,
+                                ref
+                                    .watch(authStateProvider)
+                                    .valueOrNull
+                                    ?.photoURL,
+                              ),
                               radius: 19,
                               fallback: p?.firstName ?? 'H',
                             ),
@@ -153,93 +159,33 @@ class OfficeBrandHeader extends ConsumerWidget {
   }
 }
 
-/// Bottom editing toolbar item (Retake / Crop / Rotate / Edit text / …).
-class OfficeToolButton extends StatelessWidget {
-  const OfficeToolButton({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.selected = false,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected
-        ? Colors.white
-        : onTap == null
-        ? OfficeColors.muted(context)
-        : OfficeColors.ink(context);
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          decoration: BoxDecoration(
-            color: selected ? OfficeColors.blue : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 22, color: color),
-              const SizedBox(height: 5),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.fade,
-                softWrap: false,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 ButtonStyle officePrimaryStyle() => FilledButton.styleFrom(
   backgroundColor: OfficeColors.blue,
   foregroundColor: Colors.white,
   disabledBackgroundColor: OfficeColors.blue.withValues(alpha: .35),
   disabledForegroundColor: Colors.white70,
-  minimumSize: const Size.fromHeight(44),
+  minimumSize: const Size(0, 36),
   shape: const StadiumBorder(),
   textStyle: const TextStyle(
-    fontFamily: 'Manrope',
-    fontSize: 14,
-    fontWeight: FontWeight.w700,
+    fontFamily: 'Outfit',
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
   ),
 );
 
 ButtonStyle officeOutlineStyle(BuildContext context) =>
     OutlinedButton.styleFrom(
       foregroundColor: OfficeColors.ink(context),
-      minimumSize: const Size.fromHeight(44),
+      minimumSize: const Size(0, 36),
       shape: const StadiumBorder(),
       side: BorderSide(
         color: OfficeColors.ink(context).withValues(alpha: .55),
         width: 1.4,
       ),
       textStyle: const TextStyle(
-        fontFamily: 'Manrope',
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
+        fontFamily: 'Outfit',
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
       ),
     );
 
@@ -368,10 +314,13 @@ class _OfficeFileThumbnailState extends State<OfficeFileThumbnail> {
               final data = snap.data;
               if (data == null) {
                 return Center(
-                  child: Icon(
-                    widget.fallbackIcon,
-                    size: (box.maxWidth * .32).clamp(18, 48),
-                    color: const Color(0xFF9A9AA0),
+                  child: WorkspaceIcon(
+                    widget.path.toLowerCase().endsWith('.pdf')
+                        ? WorkspaceGlyph.pdf
+                        : widget.path.toLowerCase().contains('.ppt')
+                        ? WorkspaceGlyph.slides
+                        : WorkspaceGlyph.word,
+                    size: (box.maxWidth * .65).clamp(24.0, 64.0),
                   ),
                 );
               }
@@ -449,20 +398,24 @@ class OfficeSheetItem extends StatelessWidget {
     final color = destructive
         ? const Color(0xFFE5484D)
         : OfficeColors.ink(context);
+    final glyph = controlGlyphForIcon(icon);
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
         child: Row(
           children: [
-            Icon(icon, size: 21, color: color),
+            if (glyph == null)
+              Icon(icon, size: 23, color: color)
+            else
+              ControlIcon(glyph, size: 23),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
                   color: color,
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w400,
                 ),
               ),

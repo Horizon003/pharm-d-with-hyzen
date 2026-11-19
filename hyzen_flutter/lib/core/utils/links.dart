@@ -1,3 +1,4 @@
+import 'youtube.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -31,6 +32,10 @@ Future<void> openLink(BuildContext context, String url) async {
   final internal = appRouteForLegacyHash(u);
   if (internal != null) {
     context.go(internal);
+    return;
+  }
+  if (youtubeEmbedUri(u) != null) {
+    context.push('/lecture-player', extra: {'title': 'Lecture', 'url': u});
     return;
   }
   var target = u;

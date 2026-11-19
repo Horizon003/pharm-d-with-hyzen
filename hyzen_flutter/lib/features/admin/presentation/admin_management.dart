@@ -1,3 +1,4 @@
+import '../data/data_files.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1648,10 +1649,10 @@ class _ConnectionState extends ConsumerState<AdminConnectionScreen> {
       children: [
         HeroPanel(
           eyebrow: 'Connected services',
-          title: 'Firebase + Cloudinary',
+          title: 'Connected services',
           subtitle: ref.watch(firebaseReadyProvider)
-              ? 'Firebase initialized'
-              : 'Firebase unavailable',
+              ? 'Account service connected'
+              : 'Account service unavailable',
           icon: Icons.cloud_done_outlined,
         ),
         const Gap(20),
@@ -1667,7 +1668,7 @@ class _ConnectionState extends ConsumerState<AdminConnectionScreen> {
         const ResourceTile(
           icon: Icons.photo_library_outlined,
           color: HColors.teal,
-          title: 'Cloudinary media',
+          title: 'Media storage',
           subtitle: 'Photo uploads use your website’s unsigned preset.',
           trailing: SizedBox.shrink(),
         ),
@@ -1685,7 +1686,7 @@ class _ConnectionState extends ConsumerState<AdminConnectionScreen> {
               if (mounted) {
                 setState(
                   () => status =
-                      'Server read failed. Check your connection and Firebase rules.',
+                      'Server read failed. Check your connection and account access.',
                 );
               }
             } finally {
@@ -1726,11 +1727,12 @@ class _DataState extends ConsumerState<AdminDataScreen> {
             setState(() => busy = true);
             await adminAction(context, ref, () async {
               final backup = await ref.read(adminRepositoryProvider).backup();
-              await MediaUpload.exportText(
+              final saved = await MediaUpload.exportText(
                 'hyzen_backup.json',
                 const JsonEncoder.withIndent('  ').convert(backup),
                 mime: 'application/json',
               );
+              if (!saved) throw FriendlyException('Backup export cancelled.');
             }, message: 'Backup exported');
             if (mounted) setState(() => busy = false);
           },
@@ -1743,14 +1745,17 @@ class _DataState extends ConsumerState<AdminDataScreen> {
               ? null
               : () async {
                   try {
-                    final selected = await MediaUpload.channel
-                        .invokeListMethod<dynamic>('pickDataFiles');
-                    if (selected == null || selected.length != 1) {
+                    final selected = await pickDataFiles();
+                    if (selected.isEmpty) return;
+                    if (selected.length != 1) {
                       throw FriendlyException('Choose one JSON backup.');
                     }
-                    final value = selected.first as Map;
+                    final value = selected.first;
+                    if (!value.name.toLowerCase().endsWith('.json')) {
+                      throw FriendlyException('Choose a JSON backup.');
+                    }
                     final decoded = jsonDecode(
-                      utf8.decode(value['bytes'] as List<int>),
+                      utf8.decode(value.bytes).replaceFirst('\uFEFF', ''),
                     );
                     if (decoded is! Map) {
                       throw FriendlyException('Invalid backup.');
@@ -1791,6 +1796,14 @@ class _DataState extends ConsumerState<AdminDataScreen> {
                 },
         ),
         const Gap(20),
+        ResourceTile(
+          icon: Icons.verified_user_outlined,
+          color: HColors.teal,
+          title: 'Professional verification',
+          subtitle: 'Verify professional years for rankings',
+          onTap: () => context.push('/admin/manage/rank-verification'),
+        ),
+        const Gap(12),
         ResourceTile(
           icon: Icons.upload_file_rounded,
           color: HColors.teal,
@@ -1838,10 +1851,40 @@ class AdminHistoryScreen extends ConsumerWidget {
                         icon: Icons.upload_file_rounded,
                         color: HColors.primary,
                         title:
-                            '${m['added'] ?? 0} added · ${m['skipped'] ?? 0} skipped',
+                            '${m['added'] ?? m['importedRows'] ?? 0} added · ${m['skipped'] ?? 0} skipped',
                         subtitle:
-                            '${m['files'] ?? m['fileName'] ?? ''}\n${m['createdAt'] ?? ''}',
-                        trailing: const SizedBox.shrink(),
+                            '${m['files'] ?? m['fileName'] ?? ''}\n${m['createdAt'] ?? m['importedAt'] ?? ''}',
+                        trailing: m['status'] == 'undone'
+                            ? const Text('Undone')
+                            : (m['touched'] is List)
+                            ? TextButton(
+                                onPressed: () async {
+                                  final okay = await confirmDialog(
+                                    context,
+                                    title: 'Undo this import?',
+                                    message:
+                                        'Remove files added by this batch. Other content will remain.',
+                                    confirm: 'Undo import',
+                                    destructive: true,
+                                  );
+                                  if (!okay || !context.mounted) return;
+                                  await adminAction(context, ref, () async {
+                                    await ref
+                                        .read(adminRepositoryProvider)
+                                        .undoImport('${m['id']}');
+                                  }, message: 'Import undone');
+                                  ref.invalidate(
+                                    adminValueProvider('pw_import_history'),
+                                  );
+                                  for (final k
+                                      in (m['touched'] as List)
+                                          .whereType<String>()) {
+                                    ref.invalidate(contentProvider(k));
+                                  }
+                                },
+                                child: const Text('Undo'),
+                              )
+                            : const SizedBox.shrink(),
                       ),
                   ],
                 );
@@ -1915,7 +1958,7 @@ class _ThemeState extends ConsumerState<AdminThemeScreen> {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),

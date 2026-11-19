@@ -1,0 +1,48 @@
+name: Read Android verification diagnostics
+on:
+  push:
+    branches: [work/monochrome-motion-1.5.5]
+    paths: ['.github/workflows/build-diagnostics.yml']
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Validation run to inspect (active or completed)
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_RUN: ${{ inputs.run_id || '44334773642' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read active or failed job logs on the Actions runner
+        run: |
+          set +e
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TARGET_RUN/jobs?per_page=100" --jq '.jobs[]|select(.conclusion=="failure" or .status=="in_progress")|.id' > failed-jobs.txt 2>diagnostic-errors.txt
+          : > diagnostics.txt
+          while read -r job_id; do
+            gh api --allow-escape-sequences "repos/$GITHUB_REPOSITORY/actions/jobs/$job_id/logs" >> diagnostics.txt 2>>diagnostic-errors.txt
+          done < failed-jobs.txt
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          raw=Path('diagnostics.txt').read_text()+Path('diagnostic-errors.txt').read_text()
+          lines=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',raw).splitlines()
+          failures=[i for i,line in enumerate(lines) if '##[error]' in line]
+          end=min(len(lines),failures[-1]+8) if failures else len(lines)
+          text='\n'.join(lines[max(0,end-160):end])[-45000:]
+          for index in range(0,len(text),3000):
+              part=text[index:index+3000]
+              print('::notice title=Android verification diagnostics '+str(index//3000+1)+'::'+part.replace('%','%25').replace('\r','%0D').replace('\n','%0A'))
+          Path('diagnostic-excerpt.txt').write_text(text)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-diagnostics
+          path: |
+            diagnostics.txt
+            diagnostic-excerpt.txt

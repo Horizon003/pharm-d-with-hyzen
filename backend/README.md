@@ -1,74 +1,105 @@
-# Historical Cloud Functions implementation — do not deploy
+# Firebase-native study sync (Spark)
 
-The active free runtime is [`../push-worker/`](../push-worker/OWNER_SETUP.md).
-Firebase must remain on **Spark**. Do not deploy `functions/index.js` or enable
-Blaze, Cloud Scheduler or billing. The policy below describes historical source,
-not the active global professional-year ranking service. The Worker combines all
-colleges within professional years 1–5 and supports week, month and professional
-total in Pakistan time. `functions/scoring.js` remains the shared tested policy.
-The public `PUSH_API_BASE` supplies both study and notification APIs.
+The Flutter app uses **Firebase Auth + direct Firestore**, in the existing
+`pharmawhisper-debd2` project. Study sync does not use Cloudflare, `PUSH_API_BASE`,
+Cloud Functions, Cloud Scheduler or a Blaze plan. Do not deploy the historical
+`functions/index.js`; its scoring helpers/tests are retained for policy history.
+The existing OneSignal sender and legacy study endpoints remain available to old
+APKs. Their production records are not deleted or silently converted to trusted
+Firebase competitive scores.
 
-Status: source and pure scoring tests added; **NOT DEPLOYED**. No production
-Firebase credentials or deployed rules were available in this workspace. The
-existing `hyzen_flutter/firestore.rules.proposed` explicitly says deployed rules
-are unknown. Do not overwrite them with this standalone emulator rules file.
+## Data and trust
 
-## Policy and data
+- `studyUsers/{uid}/eventBatches/{firstEventId}`: immutable personal-history
+  batches, up to 100 intervals. Lost responses acknowledge only IDs actually in
+  the committed batch; unsent intervals remain queued. Personal timestamps do
+  not award competitive points. Local history is uploaded once during upgrade.
+- `state/activity`: one active file session/account. Every interval is bounded by
+  two committed **server timestamps**. The next pulse settles the preceding
+  interval; points lag roughly one 15-second heartbeat. Gaps over 30 seconds,
+  paused intervals and intervals crossing Pakistan midnight earn zero. File
+  close pauses immediately; the uncredited 30-second UI grace then closes the
+  session. No manual Start button is required.
+- `state/wallet`: daily claim 100; each seventh consecutive claim +200; milestones
+  5/7/14/30/60/100 +50 once each. Rules validate the server date and exact deltas.
+  Study points are floor(confirmed milliseconds × 100 / 3,600,000).
+- `verifiedDays` and private `state/rank_1`…`rank_5`: server-validated credit.
+  Professional score +1/min, cap 360/day; +2 per completed 10-minute session, cap
+  five/day; +5 for a consecutive qualifying 15-minute day. Week starts Monday;
+  month and professional-total are supported. These are distinct from wallet points.
+- `campusMemberships/{uid}`: admin-verified professional year; student-selected
+  alias and opt-out. A one-time Firebase ranking-consent marker prevents an old
+  D1-only opt-out preference becoming an automatic Firebase opt-in. Confirm the
+  existing ranking privacy control once; no points/history are deleted. Private
+  profile text cannot verify an account.
+- `professionalRanks/{uid}`: only opted-in verified students, projected exactly
+  from their private year ledger. Board sorted by points/minutes/UID, pages of30.
+  Admin verification/year changes **must delete this public row in the same
+  atomic write**; the native Admin Data Manager provides that action. Admin SDK
+  or Firebase Console changes bypass rules, so use the same paired invalidation.
+- `calendar/{id}`: private events and color. Device reminders remain scheduled
+  locally; documents/PDF contents are not uploaded by this service.
 
-- `studyUsers/{uid}/events/{eventId}`: owner-readable offline personal intervals;
-  immutable IDs, max 100 per upload, deduped transactionally. These client times
-  NEVER contribute to competitive scoring.
-- `campusMemberships/{uid}`: Admin SDK-managed verification, `campusId`, campus
-  `timezone` (default Asia/Karachi), `academicYear`, privacy alias and `optOut`.
-  Only `verified:true, optOut:false` members participate. The owner must verify
-  an institution through their real administrative process; text in a student's
-  self-editable profile is never verification.
-- `studyUsers/{uid}/state/lease`: one active server lease/account. Foreground
-  heartbeat every 15 seconds. Gaps above 30 seconds and clock reversal earn zero.
-  This limits timestamp spoofing; it is NOT proof of human attention or immunity
-  to automation. App Check/rate monitoring should be enabled and device tested
-  before opening a competitive leaderboard.
-- `verifiedSessions` and `verifiedDays`: server-only receipt-time aggregates.
-  Ten-minute completed session bonus; 15-minute qualifying study day. The
-  sub-30-second heartbeat interval crossing campus midnight is conservatively
-  discarded, documented rather than credited to the wrong day.
-- Campus score: +1/min cap 360/day, +2 per >=10min completion cap 5/day,
-  +5 per consecutive >=15min day starting with day 2. Week starts Monday;
-  semesters Jan–Jun and Jul–Dec in the verified campus timezone. Ties use
-  scored minutes then UID. A campus must use one administrator-defined timezone.
-- `campusLeaderboards/{campus}/periods/{week|month|semester}` publishes a generation
-  only after all its entry batches finish. Old generations need a retention job
-  before large-scale rollout. `readCampusBoard` checks current eligibility and
-  opt-out for every returned row and paginates 30 at a time. Client reads/writes
-  to raw leaderboard collections are denied. Existing caches are labelled offline.
-- `setRankPrivacy` only changes alias/opt-out, never verification or points.
-  Private reminders, task text and documents are not uploaded by this service.
+Confirmed snapshots include metadata changes so local optimistic writes cannot
+silently drop their eventual server confirmation. Polling is reserved for retry
+and period rollover. Free Firestore daily quotas still apply; security against
+fabricated timestamps does not prove human attention or prevent automated clients.
 
-## Repeatable checks
+## Verification
 
-`cd functions && npm ci --ignore-scripts && npm test`
+From the repository root:
 
-`functions/node_modules/.bin/firebase emulators:exec --project demo-hyzen-study --only firestore "cd functions && npm run test:rules"`
+```sh
+(cd backend/functions && npm ci --ignore-scripts)
+node --test backend/tests/merge-firebase-rules.test.cjs
+backend/functions/node_modules/.bin/firebase emulators:exec --config backend/firebase-native.json --project demo-hyzen-native --only firestore 'node --test backend/tests/firebase-native.test.cjs'
+```
 
-CI runs pure scoring and Firestore emulator access tests. Live multiple-account
-integration, App Check, abuse load tests and deployment are separate release gates.
+The checked-in full rules file is **an emulator candidate, not an authorized
+replacement for current production rules**. Twelve rule tests and an opt-in real Flutter SDK/admin round trip cover legitimate credit,
+forgery, duplicate/concurrent claims, bonuses, privacy, pauses/gaps and revocation.
 
-## Historical deployment notes (superseded; not executable instructions)
+## Deploy into the existing project
 
-1. Obtain the deployed Firestore rules and backup; merge ONLY the three new match
-   blocks from `study.rules`, preserving existing app/admin permissions. Review
-   existing catch-all allow rules: a broad allow would override these denials.
-2. Do not deploy this historical Functions runtime. Use the free Worker/D1
-   deployment described in the owner guide. Keep Firebase on Spark.
-3. Run emulator security tests, seed consenting verified test memberships through
-   Admin SDK, and verify auth, multi-account isolation, privacy, concurrency,
-   partial acknowledgements and generation pagination against a staging project.
-4. Build with the owner-selected `PUSH_API_BASE` Worker URL. Do not set
-   `STUDY_API_BASE` to undeployed Cloud Functions. No fabricated ranks are displayed.
-5. Roll back by rebuilding without STUDY_API_BASE, disabling the schedule and
-   callable functions, retaining private event data and the preceding rules backup.
+The reviewable workflow is `.github/workflows/firebase-native-sync.yml`.
+Add a Firebase service-account JSON directly to the repository Actions secret
+**`FIREBASE_SERVICE_ACCOUNT`**, not in chat or source control. It needs permission
+to read/write Firebase Rules and create/read Firestore composite indexes in this
+project. Existing release-signing secrets cannot deploy Firebase.
 
-Remaining architectural limits: local events still use versioned preferences,
-not a migrated Hive session database; goal/task multi-device conflict resolution
-and downloading/reconciling personal history onto a fresh device are not finished.
-Do not label these as complete cloud sync or production-ready competitive ranking.
+Run the workflow on `work/monochrome-motion-1.5.5` with `deploy=true`. It:
+
+1. Tests the local candidate with the emulator.
+2. Reads and backs up the CURRENT deployed rules through the Rules API.
+3. Replaces only the canonical membership block and appends the marked study
+   fragment; all unrelated settings/profile/admin policy stays intact.
+4. Uploads the old rules/release and proposed merge as an Actions artifact.
+5. Runs the same adversarial tests against that actual merge. Broad existing
+   allow rules fail the tests and prevent deployment.
+6. Creates only missing ranking indexes through the Firestore API and waits for
+   them. It never deletes existing indexes.
+7. Deploys only the tested Firestore rules merge. No Functions, billing or other
+   production backend settings change.
+
+After deployment, test two real consenting accounts: open/close a file, wait for
+confirmed points, claim twice, verify the board and opt-out, create/delete a
+calendar event, reinstall/update and check history. Emulator evidence alone does
+not establish production sync. Historical D1 verified scores need a separate
+trusted admin export/migration if they are to be carried forward.
+
+Rollback uses the saved previous rules and release APK; retain Firestore data.
+Goals/tasks that were already device-local are not claimed as multi-device sync.
+
+
+## Current activation status
+
+Production deployment passed in run [44441672939](https://github.com/Horizon003/pharm-d-with-hyzen/actions/runs/44441672939).
+Live authenticated checks passed in run [44442506765](https://github.com/Horizon003/pharm-d-with-hyzen/actions/runs/44442506765), including all ranking query/count indexes and opt-out. Temporary QA data was removed.
+The existing 1.5.10+19 APK needs no rebuild.
+
+Publication uses the standard Firebase Rules REST API: create an immutable,
+server-compiled ruleset, confirm the active release still matches the backup,
+update the release, then read it back to verify. Emulator security tests remain
+mandatory. The CLI's additional `projects:test` permission is not required by
+this publication method. Unit tests ensure compiler failures and concurrent edits
+never update the active release.

@@ -60,6 +60,12 @@ test('authenticated HTTP flow verifies tokens, roles, canonical membership and r
     assert.equal((await call('/studyPulse','student',{data:{session,action:'heartbeat'}})).status,403);
     verified=true;
   });
+  await t.test('new reward/calendar routes are absent; Firebase owns that data',async()=>{
+    for(const route of ['/rewardState','/claimReward','/rewardPulse','/calendarEvents']) {
+      assert.equal((await call(route,'student',{data:{}})).status,403);
+    }
+    assert.equal(sql.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='reward_ledger'").get(),undefined);
+  });
   await t.test('admin send retry reuses provider ID; only server-selected recipients see inbox entry',async()=>{
     const message={id:'22222222-2222-4222-8222-222222222222',title:'Study update',body:'New study material',route:'/study',category:'material',target:'professional',year:1};
     const first=await call('/send','admin',message);assert.equal(first.status,200);

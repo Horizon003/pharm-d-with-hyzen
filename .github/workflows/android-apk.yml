@@ -64,14 +64,14 @@ jobs:
         run: python tools/ci/prepare_gradle.py
       - name: Build signed release APK (retry native dependency downloads once)
         run: |
-          flutter build apk --release --no-pub --no-shrink --dart-define=PUSH_API_BASE="$PUSH_API_BASE" ||
-            flutter build apk --release --no-pub --no-shrink --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
+          flutter build apk --release --no-shrink --dart-define=PUSH_API_BASE="$PUSH_API_BASE" ||
+            flutter build apk --release --no-shrink --dart-define=PUSH_API_BASE="$PUSH_API_BASE"
         working-directory: hyzen_flutter
       - name: Identify artifact
         run: sha256sum hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk > hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: PharmD_With_Hyzen_1.5.3_signed
+          name: PharmD_With_Hyzen_1.5.5_signed
           path: |
             hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk
             hyzen_flutter/build/app/outputs/flutter-apk/app-release.apk.sha256
@@ -84,7 +84,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: PharmD_With_Hyzen_1.5.3_signed
+          name: PharmD_With_Hyzen_1.5.5_signed
           path: apk
       - name: Enable KVM
         run: |

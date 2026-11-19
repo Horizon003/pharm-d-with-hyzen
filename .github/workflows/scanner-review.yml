@@ -36,12 +36,12 @@ jobs:
       - name: Capture actual Flutter reference screens
         if: ${{ !cancelled() }}
         working-directory: hyzen_flutter
-        run: flutter test --no-pub test/navigation_test.dart --plain-name 'original reference responsive matrix' --dart-define=HYZEN_CAPTURE_QA=true --update-goldens -r expanded
+        run: flutter test --no-pub test/navigation_test.dart --plain-name 'reference responsive matrix' --dart-define=HYZEN_CAPTURE_QA=true --update-goldens -r expanded
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && hashFiles('hyzen_flutter/qa/pr9/*.png') != '' }}
+        if: ${{ !cancelled() && hashFiles('hyzen_flutter/qa/reference/matrix/*.png') != '' }}
         with:
           name: hyzen-flutter-screenshots
-          path: hyzen_flutter/qa/pr9
+          path: hyzen_flutter/qa/reference/matrix
       - name: Compile Android scanner
         if: ${{ !cancelled() }}
         uses: gradle/actions/setup-gradle@v4

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hyzen · Live app preview</title>
+<meta name="description" content="Explore the real Pharm D With Hyzen Flutter interface with interactive sample data.">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#e9e3da;color:#24211e;font:14px system-ui,sans-serif}header{padding:14px 20px;background:#fbf8f3;border-bottom:1px solid #d9d1c5;display:flex;align-items:center;gap:12px;flex-wrap:wrap}h1{font-size:15px;margin:0 12px 0 0;letter-spacing:-.3px}h1 span{display:block;color:#6c645b;font-size:11px;font-weight:400;margin-top:3px}label{font-size:11px;color:#645b52;display:grid;gap:3px}select,a{font:inherit}select{min-height:36px;border:1px solid #d6ccc0;border-radius:8px;background:#fffdf9;color:#24211e;padding:6px 26px 6px 8px}a{color:inherit;text-underline-offset:3px}.actions{margin-left:auto;display:flex;gap:14px;font-size:12px}main{display:flex;justify-content:center;padding:18px}iframe{width:min(100%,var(--preview-width,430px));height:calc(100svh - 126px);min-height:500px;border:1px solid #d6ccc0;border-radius:14px;background:white;box-shadow:0 8px 30px #342a1810}.hint{margin:0;text-align:center;font-size:11px;color:#6c645b;padding:0 12px 12px}@media(max-width:640px){header{padding:10px;gap:8px}h1{width:100%;display:flex;align-items:center;justify-content:space-between;margin:0}h1 span{margin:0}label{flex:1}select{max-width:100%;width:100%}.actions{width:100%;justify-content:space-between;margin:0}main{padding:8px 0}iframe{border:0;border-radius:0;height:calc(100svh - 185px);min-height:450px}.hint{font-size:10px}}
+</style>
+</head>
+<body>
+<header>
+<h1>Pharm D With Hyzen <span>Latest UI · Real Flutter preview</span></h1>
+<label>Screen<select id="screen" aria-label="Preview screen">
+<optgroup label="Study & workspace">
+<option value="/home">Home</option><option value="/study">Study</option><option value="/study/notes">Notes & subjects</option><option value="/study/mcqs">MCQs</option><option value="/study/papers">Past papers</option><option value="/lectures">Lectures</option><option value="/study-progress">Focus timer & progress</option><option value="/study-goals">Goals & tasks</option><option value="/study-streak">Streaks</option><option value="/campus-rank">Rankings</option><option value="/pdf-studio">Office Workspace</option><option value="/downloads">Downloads</option><option value="/search">Search</option></optgroup>
+<optgroup label="Account & app"><option value="/profile">Profile</option><option value="/profile/info">Account info</option><option value="/profile/edit">Edit profile</option><option value="/settings">Settings</option><option value="/notifications">Notifications</option><option value="/shop">Shop</option><option value="/orders">Orders</option><option value="/about">About</option><option value="/contact">Contact</option></optgroup>
+<optgroup label="Onboarding & authentication"><option value="/welcome">Welcome</option><option value="/login">Login</option><option value="/forgot-password">Reset password</option><option value="/register/personal">Registration · Personal</option><option value="/register/academic">Registration · Academic</option><option value="/register/credentials">Registration · Credentials</option></optgroup>
+<optgroup label="Admin · sample data"><option value="/admin">Admin dashboard</option><option value="/admin/stats">Admin statistics</option><option value="/admin/sections">Admin sections</option><option value="/admin/content/notes">Admin academic content</option><option value="/admin/manage/data">Data manager & backup</option><option value="/admin/manage/history">Import history</option><option value="/admin/import">Admin import</option><option value="/admin/manage/settings">Admin settings</option></optgroup>
+</select></label>
+<label>Theme<select id="theme" aria-label="Preview theme"><option value="light">Light · Pastel</option></select></label>
+<label>Width<select id="width" aria-label="Preview width"><option value="430">430 dp</option><option value="390">390 dp</option><option value="360">360 dp</option><option value="320">320 dp</option><option value="768">Tablet</option><option value="100%">Fill</option></select></label>
+<label>Text<select id="scale" aria-label="Preview text size"><option value="1">100%</option><option value="1.3">130%</option><option value="2">200%</option></select></label>
+<div class="actions"><a id="open" href="app/" target="_blank" rel="noopener">Open full screen ↗</a><a href="source-commit.txt" target="_blank" rel="noopener">Source revision</a></div>
+</header>
+<main><iframe id="app" title="Actual Hyzen Flutter application" allow="clipboard-write"></iframe></main>
+<p class="hint">Sample data · Admin imports/undo and backups run in memory only. Reload resets them. Camera, OCR and native PDF operations require the Android APK.</p>
+<script>
+const screenSelect=document.getElementById('screen'),theme=document.getElementById('theme'),width=document.getElementById('width'),scale=document.getElementById('scale'),app=document.getElementById('app'),openLink=document.getElementById('open');
+const params=new URLSearchParams(location.search);
+for(const [control,key] of [[screenSelect,'screen'],[theme,'theme'],[width,'width'],[scale,'textScale']])if([...control.options].some(o=>o.value===params.get(key)))control.value=params.get(key);
+function update(reload=true){app.style.setProperty('--preview-width',width.value==='100%'?'100%':width.value+'px');if(!reload)return;const q=new URLSearchParams({theme:theme.value,textScale:scale.value});if(matchMedia('(prefers-reduced-motion: reduce)').matches)q.set('reduceMotion','true');const url='app/?'+q+'#'+screenSelect.value;app.src=url;openLink.href=url;history.replaceState(null,'','?'+new URLSearchParams({screen:screenSelect.value,theme:theme.value,width:width.value,textScale:scale.value}));}
+for(const control of [screenSelect,theme,scale])control.addEventListener('change',()=>update());width.addEventListener('change',()=>update(false));update();
+</script>
+</body></html>

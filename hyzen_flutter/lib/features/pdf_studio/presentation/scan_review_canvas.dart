@@ -276,7 +276,7 @@ class ScanThumbStrip extends StatelessWidget {
                           '${i + 1}',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),

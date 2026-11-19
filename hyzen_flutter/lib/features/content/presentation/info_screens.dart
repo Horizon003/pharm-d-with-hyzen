@@ -159,13 +159,21 @@ IconData _socialIcon(String platform, String url) {
   final p = '$platform $url'.toLowerCase();
   if (p.contains('instagram')) return FontAwesomeIcons.instagram;
   if (p.contains('facebook')) return FontAwesomeIcons.facebook;
-  if (p.contains('whatsapp') || p.contains('wa.me')) return FontAwesomeIcons.whatsapp;
-  if (p.contains('youtube') || p.contains('youtu.be')) return FontAwesomeIcons.youtube;
+  if (p.contains('whatsapp') || p.contains('wa.me')) {
+    return FontAwesomeIcons.whatsapp;
+  }
+  if (p.contains('youtube') || p.contains('youtu.be')) {
+    return FontAwesomeIcons.youtube;
+  }
   if (p.contains('linkedin')) return FontAwesomeIcons.linkedin;
   if (p.contains('github')) return FontAwesomeIcons.github;
   if (p.contains('tiktok')) return FontAwesomeIcons.tiktok;
-  if (p.contains('telegram') || p.contains('t.me')) return FontAwesomeIcons.telegram;
-  if (p.contains('twitter') || p.contains('x.com')) return FontAwesomeIcons.xTwitter;
+  if (p.contains('telegram') || p.contains('t.me')) {
+    return FontAwesomeIcons.telegram;
+  }
+  if (p.contains('twitter') || p.contains('x.com')) {
+    return FontAwesomeIcons.xTwitter;
+  }
   return Icons.language_rounded;
 }
 
@@ -175,9 +183,17 @@ class AboutScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final about = ref.watch(aboutProvider);
     final credits = [...ref.watch(creditsProvider)];
-    credits.sort((a,b) {
-      int rank(CreditCard c) => c.name.toLowerCase().contains('haris') ? 0
-        : RegExp('owner|founder|developer', caseSensitive: false).hasMatch(c.role) ? 1 : c.featured ? 2 : 3;
+    credits.sort((a, b) {
+      int rank(CreditCard c) => c.name.toLowerCase().contains('haris')
+          ? 0
+          : RegExp(
+              'owner|founder|developer',
+              caseSensitive: false,
+            ).hasMatch(c.role)
+          ? 1
+          : c.featured
+          ? 2
+          : 3;
       return rank(a).compareTo(rank(b));
     });
     final owner = credits.isEmpty ? null : credits.first;
@@ -186,79 +202,204 @@ class AboutScreen extends ConsumerWidget {
     final t = Theme.of(context);
     final scheme = t.colorScheme;
     return TabPage(
-      title: 'About', subtitle: 'PHARM D WITH HYZEN',
-      onRefresh: () => refreshContent(ref, ['pw_about', 'pw_credits', 'pw_social']),
-      slivers: [SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: HSpace.screen),
-        sliver: SliverList.list(children: [
-          if (!ref.watch(sectionEnabledProvider('about')))
-            const EmptyState(icon: Icons.lock_rounded, title: 'About is temporarily unavailable')
-          else ...[
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(28),
-                gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [scheme.primaryContainer.withValues(alpha: .65), scheme.surface])),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Container(width: 84, height: 84, padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: scheme.primary.withValues(alpha: .3), width: 2)),
-                    child: ClipOval(child: owner != null && owner.photo.isNotEmpty
-                      ? NetImage(owner.photo, height: 78)
-                      : Icon(Icons.person_rounded, size: 46, color: scheme.primary))),
-                  const SizedBox(width: 16),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('OWNER AND DEVELOPER', style: t.textTheme.labelSmall?.copyWith(color: scheme.primary, letterSpacing: 1)),
-                    const Gap(7),
-                    Text(owner?.name ?? 'Haris Aslam', style: t.textTheme.headlineSmall),
-                    if (owner != null && owner.designation.isNotEmpty) ...[const Gap(4), Text(owner.designation, style: t.textTheme.bodySmall)],
-                  ])),
-                ]),
-                const Gap(20),
-                Text('Built for your next chapter.', style: t.textTheme.titleLarge),
-                const Gap(8),
-                if (owner != null && HtmlText.plain(owner.description).isNotEmpty) HtmlText(owner.description)
-                else if (data != null && HtmlText.plain(data.founder).isNotEmpty) HtmlText(data.founder)
-                else const Text('Study resources, notes and a practical PDF workspace for Pharm-D students.'),
-                if (social.isNotEmpty) ...[
-                  const Gap(18),
-                  Wrap(spacing: 9, runSpacing: 9, children: [for (final s in social)
-                    IconButton.filledTonal(tooltip: s.platform,
-                      onPressed: () => openLink(context, s.url),
-                      icon: FaIcon(_socialIcon(s.platform, s.url), size: 20))]),
+      title: 'About',
+      subtitle: 'PHARM D WITH HYZEN',
+      onRefresh: () =>
+          refreshContent(ref, ['pw_about', 'pw_credits', 'pw_social']),
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: HSpace.screen),
+          sliver: SliverList.list(
+            children: [
+              if (!ref.watch(sectionEnabledProvider('about')))
+                const EmptyState(
+                  icon: Icons.lock_rounded,
+                  title: 'About is temporarily unavailable',
+                )
+              else ...[
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        scheme.primaryContainer.withValues(alpha: .65),
+                        scheme.surface,
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 84,
+                            height: 84,
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: scheme.primary.withValues(alpha: .3),
+                                width: 2,
+                              ),
+                            ),
+                            child: ClipOval(
+                              child: owner != null && owner.photo.isNotEmpty
+                                  ? NetImage(owner.photo, height: 78)
+                                  : Icon(
+                                      Icons.person_rounded,
+                                      size: 46,
+                                      color: scheme.primary,
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'OWNER AND DEVELOPER',
+                                  style: t.textTheme.labelSmall?.copyWith(
+                                    color: scheme.primary,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                                const Gap(7),
+                                Text(
+                                  owner?.name ?? 'Haris Aslam',
+                                  style: t.textTheme.headlineSmall,
+                                ),
+                                if (owner != null &&
+                                    owner.designation.isNotEmpty) ...[
+                                  const Gap(4),
+                                  Text(
+                                    owner.designation,
+                                    style: t.textTheme.bodySmall,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Gap(20),
+                      Text(
+                        'Built for your next chapter.',
+                        style: t.textTheme.titleLarge,
+                      ),
+                      const Gap(8),
+                      if (owner != null &&
+                          HtmlText.plain(owner.description).isNotEmpty)
+                        HtmlText(owner.description)
+                      else if (data != null &&
+                          HtmlText.plain(data.founder).isNotEmpty)
+                        HtmlText(data.founder)
+                      else
+                        const Text(
+                          'Study resources, notes and a practical PDF workspace for Pharm-D students.',
+                        ),
+                      if (social.isNotEmpty) ...[
+                        const Gap(18),
+                        Wrap(
+                          spacing: 9,
+                          runSpacing: 9,
+                          children: [
+                            for (final s in social)
+                              IconButton.filledTonal(
+                                tooltip: s.platform,
+                                onPressed: () => openLink(context, s.url),
+                                icon: FaIcon(
+                                  _socialIcon(s.platform, s.url),
+                                  size: 20,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const Gap(22),
+                if (!about.hasValue && about.isLoading)
+                  const SkeletonList(count: 2),
+                if (!about.hasValue && about.hasError)
+                  ErrorState(
+                    message: 'Could not load our story.',
+                    onRetry: () => refreshContent(ref, ['pw_about']),
+                  ),
+                if (data != null) ...[
+                  for (final section in [
+                    ('The story', data.about, Icons.auto_stories_outlined),
+                    ('Our vision', data.vision, Icons.visibility_outlined),
+                    ('Our mission', data.mission, Icons.school_outlined),
+                  ])
+                    if (HtmlText.plain(section.$2).isNotEmpty) ...[
+                      PanelBlock(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  section.$3,
+                                  color: scheme.primary,
+                                  size: 21,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    section.$1,
+                                    style: t.textTheme.titleLarge,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Gap(12),
+                            HtmlText(section.$2),
+                          ],
+                        ),
+                      ),
+                      const Gap(14),
+                    ],
                 ],
-              ]),
-            ),
-            const Gap(22),
-            if (!about.hasValue && about.isLoading) const SkeletonList(count: 2),
-            if (!about.hasValue && about.hasError) ErrorState(message: 'Could not load our story.', onRetry: () => refreshContent(ref, ['pw_about'])),
-            if (data != null) ...[
-              for (final section in [
-                ('The story', data.about, Icons.auto_stories_outlined),
-                ('Our vision', data.vision, Icons.visibility_outlined),
-                ('Our mission', data.mission, Icons.school_outlined),
-              ]) if (HtmlText.plain(section.$2).isNotEmpty) ...[
-                PanelBlock(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [Icon(section.$3, color: scheme.primary, size: 21), const SizedBox(width: 10),
-                    Expanded(child: Text(section.$1, style: t.textTheme.titleLarge))]),
-                  const Gap(12), HtmlText(section.$2),
-                ])), const Gap(14),
+                if (credits.length > 1) ...[
+                  const SectionHeader(title: 'Contributors'),
+                  const Gap(10),
+                  for (final c in credits.skip(1))
+                    ResourceTile(
+                      icon: Icons.person_outline_rounded,
+                      color: scheme.primary,
+                      title: c.name,
+                      subtitle: c.designation,
+                      trailing: c.photo.isEmpty
+                          ? null
+                          : ClipOval(
+                              child: SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: NetImage(c.photo, height: 44),
+                              ),
+                            ),
+                    ),
+                ],
+                const Gap(12),
+                Text(
+                  'Learn. Practise. Grow.',
+                  textAlign: TextAlign.center,
+                  style: t.textTheme.labelLarge?.copyWith(
+                    color: scheme.primary,
+                  ),
+                ),
+                const Gap(24),
               ],
             ],
-            if (credits.length > 1) ...[
-              const SectionHeader(title: 'Contributors'), const Gap(10),
-              for (final c in credits.skip(1)) ResourceTile(
-                icon: Icons.person_outline_rounded, color: scheme.primary,
-                title: c.name, subtitle: c.designation,
-                trailing: c.photo.isEmpty ? null : ClipOval(child: SizedBox(width: 44, height: 44, child: NetImage(c.photo, height: 44)))),
-            ],
-            const Gap(12),
-            Text('Learn. Practise. Grow.', textAlign: TextAlign.center,
-              style: t.textTheme.labelLarge?.copyWith(color: scheme.primary)),
-            const Gap(24),
-          ],
-        ]),
-      )],
+          ),
+        ),
+      ],
     );
   }
 }

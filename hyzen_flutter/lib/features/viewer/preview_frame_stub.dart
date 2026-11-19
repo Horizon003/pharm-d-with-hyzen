@@ -1,3 +1,4 @@
+import '../study_progress/document_study_scope.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -18,6 +19,7 @@ class _PreviewFrameState extends State<PreviewFrame> {
   late final WebViewController _c;
   int _progress = 0;
   bool _error = false;
+  bool _loaded = false;
   Timer? _timeout;
   double _zoom = 1;
   void _setZoom(double value) {
@@ -25,6 +27,7 @@ class _PreviewFrameState extends State<PreviewFrame> {
     _zoom = value.clamp(.5, 4);
     _c.runJavaScript('document.documentElement.style.zoom="$_zoom"');
   }
+
   @override
   void dispose() {
     _timeout?.cancel();
@@ -50,6 +53,7 @@ class _PreviewFrameState extends State<PreviewFrame> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) async {
+            if (mounted && !_error) setState(() => _loaded = true);
             await _c.runJavaScript("""
               (function() {
                 var m=document.querySelector('meta[name="viewport"]');
@@ -91,7 +95,12 @@ class _PreviewFrameState extends State<PreviewFrame> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => DocumentStudyScope(
+    ready: _loaded && !_error,
+    child: _buildPreview(context),
+  );
+
+  Widget _buildPreview(BuildContext context) {
     widget.tools?.search = null;
     widget.tools?.pages = null;
     widget.tools?.zoomIn = () => _setZoom(_zoom * 1.25);
@@ -126,7 +135,14 @@ class _PreviewFrameState extends State<PreviewFrame> {
     }
     return Stack(
       children: [
-        WebViewWidget(controller: _c, gestureRecognizers: {Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer())}),
+        WebViewWidget(
+          controller: _c,
+          gestureRecognizers: {
+            Factory<OneSequenceGestureRecognizer>(
+              () => EagerGestureRecognizer(),
+            ),
+          },
+        ),
         if (_progress < 100)
           Positioned(
             top: 0,

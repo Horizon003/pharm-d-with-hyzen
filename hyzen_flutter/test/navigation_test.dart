@@ -1,19 +1,34 @@
+import 'package:hyzen_pharmd/features/study_progress/study_calendar.dart';
+import 'package:hyzen_pharmd/features/study_progress/reward_controller.dart';
+import 'package:hyzen_pharmd/core/widgets/workspace_icons.dart';
+import 'package:hyzen_pharmd/core/widgets/display_preferences.dart';
+import 'package:hyzen_pharmd/core/widgets/profile_avatar.dart';
+import 'package:hyzen_pharmd/core/widgets/polish_ui.dart';
+import 'package:hyzen_pharmd/features/search/presentation/search_screen.dart';
+import 'package:hyzen_pharmd/core/widgets/ui_kit.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hyzen_pharmd/features/academics/presentation/library_screens.dart';
+import 'package:hyzen_pharmd/features/downloads/presentation/downloads_screen.dart';
+import 'package:hyzen_pharmd/features/pdf_studio/presentation/scan_pdf_screen.dart';
+import 'package:hyzen_pharmd/features/study_progress/study_progress_screen.dart';
 import 'dart:io';
 import 'package:hyzen_pharmd/features/notifications/notifications_screen.dart';
 import 'package:hyzen_pharmd/features/study_progress/study_forms.dart';
 import 'package:hyzen_pharmd/features/study_progress/study_tracker.dart';
-import 'package:hyzen_pharmd/features/home/presentation/home_time_artwork.dart';
 import 'package:hyzen_pharmd/features/home/presentation/home_screen.dart';
 import 'package:hyzen_pharmd/features/home/presentation/home_background.dart';
 import 'package:hyzen_pharmd/features/home/data/recent_controller.dart';
 import 'package:hyzen_pharmd/features/viewer/offline_pdf.dart';
 import 'package:hyzen_pharmd/features/academics/presentation/discovery_widgets.dart';
 import 'package:hyzen_pharmd/core/theme/tokens.dart';
+import 'package:hyzen_pharmd/core/theme/app_theme.dart';
 import 'package:hyzen_pharmd/core/widgets/surfaces.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:hyzen_pharmd/features/home/presentation/home_dashboard_top.dart';
 import 'package:hyzen_pharmd/features/auth/domain/student_profile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,11 +50,12 @@ import 'package:hyzen_pharmd/features/content/data/content_providers.dart';
 import 'package:hyzen_pharmd/features/academics/domain/models.dart';
 import 'package:hyzen_pharmd/features/viewer/external_files.dart';
 import 'package:hyzen_pharmd/core/widgets/rive_mascot.dart';
-import 'package:hyzen_pharmd/core/widgets/common.dart';
 import 'package:hyzen_pharmd/core/widgets/hyzen_art.dart';
 import 'package:hyzen_pharmd/features/auth/presentation/splash_welcome_screens.dart';
 
 class StudentUser extends Fake implements User {
+  StudentUser({this.photoURL});
+
   @override
   String get uid => 'student-test';
   @override
@@ -47,7 +63,7 @@ class StudentUser extends Fake implements User {
   @override
   String? get email => 'student@example.org';
   @override
-  String? get photoURL => null;
+  final String? photoURL;
 }
 
 void main() {
@@ -55,11 +71,12 @@ void main() {
   late SharedPreferences prefs;
   late ProviderContainer container;
   late List<Map<String, dynamic>> fixtureTree;
+  String? accountPhoto;
   var qaClock = DateTime(2026, 1, 1, 18);
   setUpAll(() async {
-    final fonts = FontLoader('Manrope');
-    for (final weight in [400, 500, 600, 700, 800]) {
-      fonts.addFont(rootBundle.load('assets/fonts/Manrope-$weight.ttf'));
+    final fonts = FontLoader('Outfit');
+    for (final weight in [400, 500, 600, 700]) {
+      fonts.addFont(rootBundle.load('assets/fonts/Outfit-$weight.ttf'));
     }
     await fonts.load();
     final icons = FontLoader('MaterialIcons')
@@ -67,6 +84,7 @@ void main() {
     await icons.load();
   });
   setUp(() async {
+    accountPhoto = null;
     qaClock = DateTime(2026, 1, 1, 18);
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
@@ -94,11 +112,20 @@ void main() {
       () => 'id-${id++}',
     );
     fixtureTree = tree;
+    await prefs.setBool('pref_ambient_motion', false);
     container = ProviderContainer(
       overrides: [
         homeClockProvider.overrideWithValue(() => qaClock),
         sharedPrefsProvider.overrideWithValue(prefs),
-        authStateProvider.overrideWith((ref) => Stream.value(StudentUser())),
+        // Widget navigation verifies planner state; OS alarm delivery is a
+        // separate native check, outside fake-async widget scheduling.
+        calendarProvider.overrideWith(
+          (ref) =>
+              CalendarController(prefs, 'ui-calendar', null, (_, __) async {}),
+        ),
+        authStateProvider.overrideWith(
+          (ref) => Stream.value(StudentUser(photoURL: accountPhoto)),
+        ),
         profileProvider.overrideWith(
           (ref) => Stream.value(
             const StudentProfile(
@@ -171,6 +198,189 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets(
+    'display sizes change, persist on rebuild, and reset to Android defaults',
+    (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.6;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await open(tester, '/settings');
+      final text = find.byKey(const ValueKey('ui_text_scale'));
+      final elements = find.byKey(const ValueKey('ui_element_scale'));
+      await tester.scrollUntilVisible(
+        text,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(text);
+      await tester.pumpAndSettle();
+
+      final reset = find.text('Reset sizes');
+      expect(tester.widget<Slider>(text).value, 1);
+      expect(tester.widget<Slider>(elements).value, 1);
+      expect(
+        MediaQuery.textScalerOf(tester.element(text)).scale(20),
+        closeTo(32, .01),
+      );
+      expect(UiDensity.of(tester.element(elements)), 1);
+
+      await tester.drag(text, const Offset(500, 0));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(elements);
+      await tester.pumpAndSettle();
+      await tester.drag(elements, const Offset(500, 0));
+      await tester.pumpAndSettle();
+      expect(prefs.getDouble('ui_text_scale'), 1.25);
+      expect(prefs.getDouble('ui_element_scale'), 1.15);
+      expect(
+        MediaQuery.textScalerOf(tester.element(elements)).scale(20),
+        closeTo(40, .01),
+      );
+      expect(UiDensity.of(tester.element(elements)), 1.15);
+
+      final restarted = ProviderContainer(
+        overrides: [sharedPrefsProvider.overrideWithValue(prefs)],
+      );
+      addTearDown(restarted.dispose);
+      expect(restarted.read(displayScaleProvider('ui_text_scale')), 1.25);
+      expect(restarted.read(displayScaleProvider('ui_element_scale')), 1.15);
+
+      await tester.ensureVisible(reset);
+      await tester.pumpAndSettle();
+      await tester.tap(reset);
+      await tester.pumpAndSettle();
+      expect(prefs.getDouble('ui_text_scale'), 1);
+      expect(prefs.getDouble('ui_element_scale'), 1);
+      expect(
+        MediaQuery.textScalerOf(tester.element(elements)).scale(20),
+        closeTo(32, .01),
+      );
+      expect(UiDensity.of(tester.element(elements)), 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Home plan cards keep words intact at 320 and 360dp', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    for (final width in [320.0, 360.0]) {
+      tester.view.physicalSize = Size(width, 844);
+      for (final scale in [1.0, 1.3, 2.0]) {
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        container
+            .read(displayScaleProvider('ui_text_scale').notifier)
+            .set(scale == 1 ? 1 : 1.25);
+        container
+            .read(displayScaleProvider('ui_element_scale').notifier)
+            .set(1.15);
+        await open(tester, '/home');
+        final title = find.text('Study library');
+        await tester.scrollUntilVisible(
+          title,
+          160,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        for (final label in [
+          'Study library',
+          'Notes, MCQs & past papers',
+          'Office workspace',
+        ]) {
+          final finder = find.text(label);
+          await tester.ensureVisible(finder);
+          final paragraph = tester.renderObject<RenderParagraph>(finder);
+          for (final match in RegExp(r'\S+').allMatches(label)) {
+            final boxes = paragraph.getBoxesForSelection(
+              TextSelection(baseOffset: match.start, extentOffset: match.end),
+            );
+            expect(
+              boxes.length,
+              1,
+              reason: '${match.group(0)} at ${width}dp / $scale×',
+            );
+          }
+        }
+        if (const bool.fromEnvironment('HYZEN_CAPTURE_QA') &&
+            width == 360 &&
+            scale == 1.3) {
+          await Scrollable.ensureVisible(tester.element(title), alignment: .25);
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 150)),
+          );
+          await tester.pumpAndSettle();
+          await expectLater(
+            find.byType(HyzenApp),
+            matchesGoldenFile('../qa/reference/after/home-note8-large.png'),
+          );
+        }
+        expect(tester.takeException(), isNull);
+      }
+    }
+  });
+
+  testWidgets(
+    'core screens fit narrow phones with maximum app and Android sizes',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      container.read(displayScaleProvider('ui_text_scale').notifier).set(1.25);
+      container
+          .read(displayScaleProvider('ui_element_scale').notifier)
+          .set(1.15);
+
+      for (final width in [320.0, 360.0]) {
+        tester.view.physicalSize = Size(width, 844);
+        for (final path in [
+          '/settings',
+          '/study',
+          '/pdf-studio',
+          '/downloads',
+          '/study-progress',
+          '/notifications',
+          '/search',
+        ]) {
+          await open(tester, path);
+          expect(tester.takeException(), isNull, reason: '$path at ${width}dp');
+          final scrollable = find.byType(Scrollable).first;
+          for (var i = 0; i < 3; i++) {
+            await tester.drag(scrollable, const Offset(0, -580));
+            await tester.pumpAndSettle();
+            expect(
+              tester.takeException(),
+              isNull,
+              reason: '$path at ${width}dp after scroll',
+            );
+          }
+        }
+      }
+    },
+  );
+
+  testWidgets(
+    'Home, shared, and Office headers use the signed-in account photo',
+    (tester) async {
+      accountPhoto = 'https://example.org/avatar.png';
+      for (final route in ['/home', '/study', '/downloads', '/pdf-studio']) {
+        await open(tester, route);
+        final avatars = tester.widgetList<ProfileAvatar>(
+          find.byType(ProfileAvatar),
+        );
+        expect(
+          avatars.map((avatar) => avatar.photoUrl),
+          contains(accountPhoto),
+          reason: route,
+        );
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('push inbox deduplicates receipt and preserves read status', (
     tester,
   ) async {
@@ -203,24 +413,65 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets(
+    'date ribbon keeps two-digit dates on one line at 320dp and 200% text',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+              child: SizedBox(
+                width: 288,
+                child: StudyWeekRibbon(
+                  now: DateTime(2026, 11, 17),
+                  days: const {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      for (var day = 16; day <= 22; day++) {
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.text('$day'),
+        );
+        expect(
+          paragraph
+              .getBoxesForSelection(
+                const TextSelection(baseOffset: 0, extentOffset: 2),
+              )
+              .map((box) => box.top)
+              .toSet()
+              .length,
+          1,
+          reason: '$day must remain a single readable date',
+        );
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
   test('HOME-03 time greeting boundaries', () {
     expect(homeGreeting(DateTime(2026, 1, 1, 6)), 'Good morning');
     expect(homeGreeting(DateTime(2026, 1, 1, 12)), 'Good afternoon');
     expect(homeGreeting(DateTime(2026, 1, 1, 17)), 'Good evening');
   });
   testWidgets(
-    'HOME-01/02/03/04/05/17 adaptive atmosphere, personalized monochrome greeting',
+    'HOME-01 reference artwork, real date and personalized light-only header',
     (tester) async {
       for (final mode in [ThemeMode.dark, ThemeMode.light]) {
         container.read(themeModeProvider.notifier).set(mode);
         await open(tester, '/home');
-        expect(find.byType(HomeAtmosphere), findsNWidgets(2));
+        expect(find.byType(HomeAtmosphere), findsOneWidget);
         final greeting = tester.widget<Text>(
           find.byKey(const ValueKey('home-greeting')),
         );
-        expect(greeting.data, 'GOOD EVENING');
+        expect(greeting.data, 'Hello, Ali');
+        expect(find.text('Today 1 Jan'), findsNothing);
         expect(greeting.style!.color, isNot(HColors.mint));
-        expect(find.text('Welcome back, Ali'), findsOneWidget);
+        expect(find.text('Hello, Ali'), findsOneWidget);
         final accountAction = tester.getSize(
           find.byTooltip('Profile & settings'),
         );
@@ -230,11 +481,8 @@ void main() {
         expect(find.text('More from Hyzen'), findsNothing);
         expect(find.text('About Hyzen'), findsNothing);
         expect(find.text('Contact us'), findsNothing);
-        final search = find.text('Search subjects, topics or files');
-        expect(
-          Theme.of(tester.element(search)).brightness,
-          mode == ThemeMode.dark ? Brightness.dark : Brightness.light,
-        );
+        final search = find.byTooltip('Search academic resources');
+        expect(Theme.of(tester.element(search)).brightness, Brightness.light);
         expect(tester.takeException(), isNull);
       }
     },
@@ -257,6 +505,11 @@ void main() {
     tester,
   ) async {
     await open(tester, '/home');
+    await tester.scrollUntilVisible(
+      find.text('Test academic announcement'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Test academic announcement'), findsOneWidget);
     container.read(boolPrefProvider('pref_announcements').notifier).set(false);
     await tester.pumpAndSettle();
@@ -292,6 +545,11 @@ void main() {
       });
       await open(tester, '/home');
       final clear = find.text('Clear');
+      await tester.scrollUntilVisible(
+        clear,
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
       await Scrollable.ensureVisible(tester.element(clear), alignment: .5);
       await tester.pumpAndSettle();
       await tester.tap(clear);
@@ -307,20 +565,27 @@ void main() {
   );
   testWidgets('HOME-07/08 real search and Quick Access routes', (tester) async {
     for (final entry in <String, String>{
-      'Search subjects, topics or files': '/search',
+      'Search academic resources': '/search',
       'Study Library': '/study',
       'Office Workspace': '/pdf-studio',
       'Downloads': '/downloads',
       'Shop': '/shop',
     }.entries) {
       await open(tester, '/home');
-      final target = find
-          .descendant(
-            of: find.byType(HomeScreen),
-            matching: find.text(entry.key),
-          )
-          .first;
-      await Scrollable.ensureVisible(tester.element(target), alignment: .5);
+      final Finder target;
+      if (entry.key == 'Search academic resources') {
+        target = find.byTooltip(entry.key);
+      } else if (entry.key == 'Study Library' ||
+          entry.key == 'Office Workspace') {
+        target = find.byWidgetPredicate(
+          (w) => w is HCard && w.semanticLabel == entry.key,
+        );
+      } else {
+        target = find.byKey(ValueKey('dock-${entry.key.toLowerCase()}'));
+      }
+      if (entry.key != 'Downloads' && entry.key != 'Shop') {
+        await Scrollable.ensureVisible(tester.element(target), alignment: .5);
+      }
       await tester.pumpAndSettle();
       await tester.tap(target);
       await tester.pumpAndSettle();
@@ -373,12 +638,22 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 40)),
       );
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('1 Saved'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('1 Saved'), findsOneWidget);
       expect(find.text('1 New'), findsOneWidget);
       expect(
         find.text('1 Downloading'),
         findsNothing,
         reason: 'Interrupted transfers restore as paused',
+      );
+      await tester.scrollUntilVisible(
+        find.text('Actual recent notes'),
+        200,
+        scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Actual recent notes'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -411,6 +686,11 @@ void main() {
             ),
       );
       await open(tester, '/home');
+      await tester.scrollUntilVisible(
+        find.byType(SubjectDiscovery),
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
       final subjects = tester.widget<SubjectDiscovery>(
         find.byType(SubjectDiscovery),
       );
@@ -478,13 +758,17 @@ void main() {
     'announcement toggle persists between settings and account info',
     (tester) async {
       await open(tester, '/settings');
+      final announcements = find.byWidgetPredicate(
+        (widget) =>
+            widget is AccountToggle && widget.label == 'Show announcements',
+      );
       await tester.scrollUntilVisible(
-        find.byType(AccountToggle),
+        announcements,
         250,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(AccountToggle));
+      await tester.tap(announcements);
       await tester.pumpAndSettle();
       expect(prefs.getBool('pref_announcements'), isFalse);
       container.read(routerProvider).go('/profile/info');
@@ -535,27 +819,20 @@ void main() {
     }
   });
 
-  testWidgets('Downloads keeps one empty-state panda and compact file count', (
+  testWidgets('Downloads shows one pastel panda card and saved-file count', (
     tester,
   ) async {
     await open(tester, '/downloads');
     expect(
       find.byWidgetPredicate(
-        (widget) =>
-            widget is Image &&
-            widget.semanticLabel ==
-                'Hyzen panda waving from the offline library card',
-      ),
-      findsNothing,
-    );
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is HyzenRiveMascot &&
-            widget.state == HyzenRiveState.downloading,
+        (w) =>
+            w is Image &&
+            w.semanticLabel == 'Hyzen panda with an offline download tablet',
       ),
       findsOneWidget,
     );
+    expect(find.byType(HyzenRiveMascot), findsNothing);
+    expect(find.text('0 saved files · 0 B'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -573,37 +850,40 @@ void main() {
       expect(find.textContaining('Screen coming soon'), findsNothing);
     }
   });
-  testWidgets('NAV-01/02 five equal destinations in the requested order', (
-    tester,
-  ) async {
-    await open(tester, '/home');
-    final dock = find.byKey(const ValueKey('main-dock'));
-    expect(find.byType(NavigationBar), findsNothing);
-    final buttons = find.descendant(of: dock, matching: find.byType(InkWell));
-    expect(buttons, findsNWidgets(5));
-    expect(DockDestination.values.map((d) => d.label).toList(), [
-      'Home',
-      'Study',
-      'Office Workspace',
-      'Shop',
-      'Downloads',
-    ]);
-    double previous = -1;
-    for (final destination in DockDestination.values) {
-      final target = find.byKey(ValueKey('dock-${destination.name}'));
-      final rect = tester.getRect(target);
-      expect(rect.left, greaterThan(previous));
-      expect(rect.width, greaterThanOrEqualTo(48));
-      expect(rect.height, greaterThanOrEqualTo(48));
-      previous = rect.left;
-    }
-    expect(
-      tester.widget<Material>(dock).color,
-      Theme.of(tester.element(dock)).brightness == Brightness.dark
-          ? Colors.black
-          : Colors.white,
-    );
-  });
+  testWidgets(
+    'NAV-01/02 compact pill dock keeps five accessible destinations',
+    (tester) async {
+      await open(tester, '/home');
+      final dock = find.byKey(const ValueKey('main-dock'));
+      expect(find.byType(NavigationBar), findsNothing);
+      final buttons = find.descendant(of: dock, matching: find.byType(InkWell));
+      expect(buttons, findsNWidgets(5));
+      expect(DockDestination.values.map((d) => d.label).toList(), [
+        'Home',
+        'Study',
+        'Office Workspace',
+        'Shop',
+        'Downloads',
+      ]);
+      double previous = -1;
+      for (final destination in DockDestination.values) {
+        final target = find.byKey(ValueKey('dock-${destination.name}'));
+        final rect = tester.getRect(target);
+        expect(rect.left, greaterThan(previous));
+        expect(rect.width, greaterThanOrEqualTo(48));
+        expect(rect.height, greaterThanOrEqualTo(48));
+        previous = rect.left;
+      }
+      final surface = find.descendant(
+        of: dock,
+        matching: find.byType(Material),
+      );
+      expect(
+        tester.widget<Material>(surface.first).color,
+        const Color(0xFFF0F0F2),
+      );
+    },
+  );
 
   testWidgets(
     'NAV-03/04/05 Study hub, independent Downloads and center workspace',
@@ -744,8 +1024,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  test('text size starts at 8 and restores the chosen numeric size', () async {
-    expect(container.read(textSizeProvider), 8);
+  test('text size starts at 13 and restores the chosen numeric size', () async {
+    expect(container.read(textSizeProvider), 13);
     await container.read(textSizeProvider.notifier).set(16);
     expect(prefs.getInt('app_text_size'), 16);
     container.invalidate(textSizeProvider);
@@ -880,7 +1160,7 @@ void main() {
       await tester.ensureVisible(find.text('Already a user? Log in'));
       await tester.tap(find.text('Already a user? Log in'));
       await tester.pumpAndSettle();
-      expect(find.text('Welcome to PHARM D WITH HYZEN'), findsOneWidget);
+      expect(find.text('Welcome back'), findsOneWidget);
       expect(find.byKey(const ValueKey('login-panda-hero')), findsOneWidget);
       expect(find.byType(MainDock), findsNothing);
       await tester.enterText(
@@ -906,29 +1186,19 @@ void main() {
   );
 
   testWidgets(
-    'account surfaces follow persisted Light and Dark without changing layout',
+    'account remains light while preserving legacy theme preferences',
     (tester) async {
       for (final mode in [ThemeMode.light, ThemeMode.dark]) {
         container.read(themeModeProvider.notifier).set(mode);
         for (final path in ['/profile', '/profile/info', '/settings']) {
           await open(tester, path);
           final context = tester.element(find.byType(AccountPage));
-          expect(
-            Theme.of(context).brightness,
-            mode == ThemeMode.dark ? Brightness.dark : Brightness.light,
-          );
+          expect(Theme.of(context).brightness, Brightness.light);
           final cards = find.descendant(
             of: find.byType(SettingsCard).first,
             matching: find.byType(Material),
           );
-          expect(
-            tester.widget<Material>(cards.first).color,
-            mode == ThemeMode.dark
-                ? (path == '/profile' || path == '/settings'
-                      ? AccountStyle.raised
-                      : AccountStyle.card)
-                : Colors.white,
-          );
+          expect(tester.widget<Material>(cards.first).color, HColors.surface);
           expect(prefs.getString('theme_mode'), mode.name);
           expect(tester.takeException(), isNull);
         }
@@ -1097,6 +1367,336 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('Home quick actions open notes camera scanner and downloads', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const camera = MethodChannel('com.hyzen.pharmd/camera_pages');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      camera,
+      (_) async => <String>[],
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        camera,
+        null,
+      ),
+    );
+    for (final action in [
+      ('notes', '/study/notes', LibraryLevelScreen),
+      ('scan', '/create-pdf?source=camera', ScanPdfScreen),
+      ('downloads', '/downloads', DownloadsScreen),
+    ]) {
+      await open(tester, '/home');
+      final button = find.byKey(ValueKey('home-action-${action.$1}'));
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      final size = tester.getSize(button);
+      expect(size.width, greaterThanOrEqualTo(48));
+      expect(size.height, greaterThanOrEqualTo(48));
+      await tester.tap(button);
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pumpAndSettle();
+      final screen = find.byType(action.$3);
+      expect(screen, findsOneWidget);
+      expect(
+        GoRouterState.of(tester.element(screen)).uri.toString(),
+        action.$2,
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
+  testWidgets(
+    'calendar and streak adapt to phone/tablet widths and large text',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      for (final width in [320.0, 360.0, 390.0, 430.0, 800.0]) {
+        for (final scale in [1.0, 2.0]) {
+          tester.view.physicalSize = Size(width, 844);
+          tester.platformDispatcher.textScaleFactorTestValue = scale;
+          for (final route in [
+            '/study-calendar',
+            '/study-streak',
+            '/study-progress',
+          ]) {
+            await open(tester, route);
+            expect(
+              tester.takeException(),
+              isNull,
+              reason: '$route at $width / $scale',
+            );
+            await tester.drag(
+              find.byType(Scrollable).first,
+              const Offset(0, -580),
+            );
+            await tester.pumpAndSettle();
+            expect(
+              tester.takeException(),
+              isNull,
+              reason: '$route after scroll at $width / $scale',
+            );
+          }
+        }
+      }
+    },
+  );
+  testWidgets('calendar opens selected Home date and colors its event pill', (
+    tester,
+  ) async {
+    qaClock = DateTime(2026, 11, 18);
+    await open(tester, '/home');
+    await tester.ensureVisible(find.byType(StudyWeekRibbon));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(StudyWeekRibbon),
+        matching: find.text('18'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(StudyCalendarScreen), findsOneWidget);
+    expect(
+      GoRouterState.of(
+        tester.element(find.byType(StudyCalendarScreen)),
+      ).uri.queryParameters['date'],
+      '2026-11-18',
+    );
+    await container
+        .read(calendarProvider)
+        .put(
+          PlannerEvent(
+            id: 'exam-fixture',
+            title: 'Pharmacology paper',
+            at: DateTime(2026, 11, 18, 9),
+            color: 0xffd46a61,
+            kind: 'Exam',
+          ),
+        );
+    await tester.pumpAndSettle();
+    expect(find.text('Pharmacology paper'), findsOneWidget);
+    container.read(routerProvider).pop();
+    await tester.pumpAndSettle();
+    final boxes = tester.widgetList<Container>(
+      find.descendant(
+        of: find.byType(StudyWeekRibbon),
+        matching: find.byType(Container),
+      ),
+    );
+    expect(
+      boxes.any(
+        (c) =>
+            c.decoration is BoxDecoration &&
+            (c.decoration as BoxDecoration).color == const Color(0xffd46a61),
+      ),
+      isTrue,
+    );
+    expect(container.read(studyTrackerProvider).running, isFalse);
+  });
+  testWidgets('points bubble hides without changing confirmed wallet', (
+    tester,
+  ) async {
+    await open(tester, '/home');
+    container.read(rewardProvider).apply({
+      'today': '2026-11-18',
+      'points': 950,
+      'streak': 7,
+      'bestStreak': 7,
+      'claimedDays': ['2026-11-18'],
+      'claimedMilestones': [5],
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('My Points 950'), findsOneWidget);
+    await tester.tap(find.text('My Points 950'));
+    await tester.pumpAndSettle();
+    expect(find.text('My Points 950'), findsNothing);
+    expect(container.read(rewardProvider).points, 950);
+  });
+  testWidgets(
+    'Daily Challenge opens progress without starting a manual session',
+    (tester) async {
+      await open(tester, '/home');
+      await tester.tap(find.byKey(const ValueKey('home-focus-card')));
+      await tester.pumpAndSettle();
+      expect(container.read(studyTrackerProvider).running, isFalse);
+      expect(
+        GoRouterState.of(
+          tester.element(find.byType(StudyProgressScreen)),
+        ).uri.path,
+        '/study-progress',
+      );
+      container.read(routerProvider).pop();
+      await tester.pumpAndSettle();
+      expect(
+        container.read(routerProvider).routeInformationProvider.value.uri.path,
+        '/home',
+      );
+      expect(container.read(studyTrackerProvider).running, isFalse);
+      container.read(studyTrackerProvider).pause();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets('Home inline search filters and carries query to full search', (
+    tester,
+  ) async {
+    await open(tester, '/home');
+    final search = find.byKey(const ValueKey('home-search-input'));
+    await tester.ensureVisible(search);
+    await tester.enterText(search, 'Insulin');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    for (final scope in ['notes', 'books', 'lectures', 'downloads']) {
+      expect(find.byKey(ValueKey('search-scope-$scope')), findsOneWidget);
+    }
+    await tester.tap(find.byKey(const ValueKey('search-scope-notes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Insulin Notes'), findsOneWidget);
+    await tester.ensureVisible(find.text('View all results'));
+    await tester.tap(find.text('View all results'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SearchScreen), findsOneWidget);
+    final field = tester.widget<TextField>(
+      find.descendant(
+        of: find.byType(HSearchField),
+        matching: find.byType(TextField),
+      ),
+    );
+    expect(field.controller?.text, 'Insulin');
+    expect(find.text('Insulin Notes'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('keyboard search submission retains the selected category', (
+    tester,
+  ) async {
+    await open(tester, '/home');
+    final input = find.byKey(const ValueKey('home-search-input'));
+    await Scrollable.ensureVisible(tester.element(input), alignment: .35);
+    await tester.pumpAndSettle();
+    await tester.enterText(input, 'Pharmacology');
+    await tester.pump(const Duration(milliseconds: 250));
+    final books = find.byKey(const ValueKey('search-scope-books'));
+    await Scrollable.ensureVisible(tester.element(books), alignment: .5);
+    await tester.pumpAndSettle();
+    await tester.tap(books);
+    await tester.pumpAndSettle();
+    await Scrollable.ensureVisible(tester.element(input), alignment: .35);
+    await tester.pumpAndSettle();
+    await tester.tap(input);
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<SearchScreen>(find.byType(SearchScreen)).initialScope.name,
+      'books',
+    );
+    expect(
+      tester.widget<SearchScreen>(find.byType(SearchScreen)).initialQuery,
+      'Pharmacology',
+    );
+  });
+  testWidgets('hold previews preserve Home until explicitly opened', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    for (final name in ['Study Library', 'Office Workspace']) {
+      await open(tester, '/home');
+      final card = find.byWidgetPredicate(
+        (w) => w is HCard && w.semanticLabel == name,
+      );
+      await tester.ensureVisible(card);
+      await tester.longPress(card);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('card-hold-preview')), findsOneWidget);
+      expect(find.text(name), findsOneWidget);
+      expect(
+        container.read(routerProvider).routeInformationProvider.value.uri.path,
+        '/home',
+      );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pumpAndSettle();
+      if (const bool.fromEnvironment('HYZEN_CAPTURE_QA')) {
+        await expectLater(
+          find.byType(HyzenApp),
+          matchesGoldenFile(
+            '../qa/reference/after/hold-${name.startsWith('Study') ? 'study' : 'office'}.png',
+          ),
+        );
+      }
+      await tester.tap(find.byTooltip('Close preview'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('card-hold-preview')), findsNothing);
+    }
+  });
+  testWidgets('display sliders retain Android text scaling', (tester) async {
+    await container.read(textSizeProvider.notifier).set(6);
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await open(tester, '/home');
+    expect(
+      MediaQuery.textScalerOf(
+        tester.element(find.byType(HomeScreen)),
+      ).scale(14),
+      21,
+    );
+    await open(tester, '/settings');
+    expect(find.byKey(const ValueKey('ui_text_scale')), findsOneWidget);
+    expect(find.byKey(const ValueKey('ui_element_scale')), findsOneWidget);
+  });
+  testWidgets('notification unread filter and read-all update real inbox', (
+    tester,
+  ) async {
+    await open(tester, '/notifications');
+    final inbox = container.read(notificationsProvider.notifier);
+    inbox.readAll();
+    inbox.receivePush({
+      'id': 'test-polish-new',
+      'title': 'New lecture',
+      'body': 'A new class is available',
+      'url': '',
+    });
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unread · 1'));
+    await tester.pumpAndSettle();
+    expect(find.text('New lecture'), findsOneWidget);
+    await tester.tap(find.text('Read all'));
+    await tester.pumpAndSettle();
+    expect(find.text('New lecture'), findsNothing);
+    expect(find.text('You’re up to date'), findsOneWidget);
+  });
+  testWidgets(
+    'hero motion settles and reduced motion uses a static transform',
+    (tester) async {
+      for (final reduced in [false, true]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MediaQuery(
+              data: MediaQueryData(disableAnimations: reduced),
+              child: const HSoftArt(child: Text('Art')),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.binding.transientCallbackCount, 0);
+        final translate = tester
+            .widgetList<Transform>(find.byType(Transform))
+            .first;
+        expect(translate.transform.getTranslation().y.abs(), lessThan(.001));
+      }
+    },
+  );
   testWidgets('reference Home hero and positioned profile fit a 360px phone', (
     tester,
   ) async {
@@ -1106,7 +1706,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await open(tester, '/home');
     expect(find.byKey(const ValueKey('home-hero-art')), findsOneWidget);
-    expect(find.text('Others'), findsOneWidget);
+    expect(find.text('Your plan'), findsOneWidget);
     expect(
       tester.getRect(find.byTooltip('Profile & settings')).left,
       lessThan(40),
@@ -1123,12 +1723,27 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
-  testWidgets('onboarding mounts a semantic mascot state for every page', (
-    tester,
-  ) async {
-    await tester.pumpWidget(const MaterialApp(home: WelcomeScreen()));
-    expect(find.byType(HyzenRiveMascot), findsOneWidget);
-    await tester.drag(find.byType(PageView), const Offset(-500, 0));
+  testWidgets('panda onboarding retains later mascot pages', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light(), home: const WelcomeScreen()),
+    );
+    expect(
+      find.text('Thrilled to join\nyour learning\njourney!'),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is WorkspaceIcon && widget.glyph == WorkspaceGlyph.panda,
+      ),
+      findsOneWidget,
+    );
+    final slider = find.byKey(const ValueKey('onboarding-slide'));
+    final bounds = tester.getRect(slider);
+    await tester.dragFrom(
+      bounds.centerLeft + const Offset(27, 0),
+      Offset(bounds.width - 48, 0),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(HyzenRiveMascot), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -1168,8 +1783,8 @@ void main() {
       for (final mode in [ThemeMode.light, ThemeMode.dark]) {
         guest.read(themeModeProvider.notifier).set(mode);
         await tester.pumpAndSettle();
-        expect(find.text('Welcome back'), findsNothing);
-        expect(find.byType(HyzenBrandIcon), findsOneWidget);
+        expect(find.text('Welcome back'), findsOneWidget);
+        expect(find.byKey(const ValueKey('login-panda-hero')), findsOneWidget);
         await tester.ensureVisible(find.text('Log in'));
         await tester.tap(find.text('Log in'));
         await tester.pumpAndSettle();
@@ -1201,7 +1816,16 @@ void main() {
           '/downloads',
         ]) {
           await open(tester, path);
-          expect(find.byType(HyzenBanner), findsNothing);
+          expect(
+            find.byType(HyzenBanner),
+            (path == '/study/notes' || path == '/pdf-studio')
+                ? findsNothing
+                : findsOneWidget,
+          );
+          if (path == '/pdf-studio') {
+            expect(find.text('Gallery'), findsOneWidget);
+            expect(find.text('Your workspace'), findsOneWidget);
+          }
           expect(find.byType(HomeAtmosphere), findsWidgets);
           expect(find.byTooltip('Profile & settings'), findsOneWidget);
           expect(tester.takeException(), isNull);
@@ -1405,7 +2029,7 @@ void main() {
           await tester.pumpAndSettle();
           await expectLater(
             find.byType(HyzenApp),
-            matchesGoldenFile('../qa/${mode.name}_admin.png'),
+            matchesGoldenFile('../qa/reference/after/${mode.name}_admin.png'),
           );
         }
         admin.read(themeModeProvider.notifier).set(ThemeMode.system);
@@ -1413,14 +2037,81 @@ void main() {
       }
     }
     expect(find.text('2nd Professional'), findsOneWidget);
+    tester.view.physicalSize = const Size(320, 844);
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    admin.read(routerProvider).go('/admin/import');
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byWidgetPredicate((w) => w is DropdownButtonFormField<String>),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'Admin import at 320dp / 200%',
+    );
   });
   if (const bool.fromEnvironment('HYZEN_CAPTURE_QA')) {
-    testWidgets('representative screens visual QA', (tester) async {
+    testWidgets('onboarding reference visual QA', (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      for (final mode in [ThemeMode.dark, ThemeMode.light]) {
+      final guest = ProviderContainer(
+        overrides: [
+          sharedPrefsProvider.overrideWithValue(prefs),
+          authStateProvider.overrideWith((ref) => Stream.value(null)),
+          profileProvider.overrideWith((ref) => Stream.value(null)),
+          contentProvider.overrideWith(
+            (ref, key) => Stream.value(
+              const ContentSnapshot(value: {}, fromCache: false),
+            ),
+          ),
+        ],
+      );
+      addTearDown(guest.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: guest, child: const HyzenApp()),
+      );
+      await tester.pumpAndSettle();
+      for (final route in ['/welcome', '/login', '/register/personal']) {
+        guest.read(routerProvider).go(route);
+        await tester.pumpAndSettle();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)),
+        );
+        await tester.pumpAndSettle();
+        await expectLater(
+          find.byType(HyzenApp),
+          matchesGoldenFile(
+            '../qa/reference/after/light${route.replaceAll('/', '_')}.png',
+          ),
+        );
+        if (route == '/login') {
+          final login = find.text('Already a user? Log in');
+          await tester.ensureVisible(login);
+          await tester.tap(login);
+          await tester.pumpAndSettle();
+          await expectLater(
+            find.byType(HyzenApp),
+            matchesGoldenFile('../qa/reference/after/light_login_form.png'),
+          );
+        }
+        expect(tester.takeException(), isNull);
+      }
+    });
+  }
+  if (const bool.fromEnvironment('HYZEN_CAPTURE_QA')) {
+    testWidgets('representative screens visual QA', (tester) async {
+      qaClock = DateTime(2026, 11, 18);
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      for (final mode in [ThemeMode.light]) {
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pumpAndSettle();
         container.read(themeModeProvider.notifier).set(mode);
@@ -1428,14 +2119,34 @@ void main() {
           '/home',
           '/study',
           '/pdf-studio',
+          '/study-goals',
+          '/study-progress',
+          '/study-streak',
+          '/study-calendar',
           '/study/notes/id-0/id-1/id-2/id-3/id-4',
           '/downloads',
           '/profile',
           '/contact',
           '/settings',
           '/about',
+          '/notifications',
         ]) {
           await open(tester, path);
+          if (path == '/notifications') {
+            final inbox = container.read(notificationsProvider.notifier);
+            inbox.receivePush({
+              'id': 'preview-material',
+              'title': 'New pharmacology notes',
+              'body':
+                  'Your next revision session is ready. Explore the latest academic resources.',
+              'url': '/study/notes',
+            });
+            inbox.addLocalReminder(
+              'A little focus goes a long way',
+              'Take 25 minutes for your daily study goal.',
+              'preview-goal',
+            );
+          }
           await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 60)),
           );
@@ -1447,7 +2158,7 @@ void main() {
           await expectLater(
             find.byType(HyzenApp),
             matchesGoldenFile(
-              '../qa/${mode.name}${path.replaceAll('/', '_')}.png',
+              '../qa/reference/after/${mode.name}${path.replaceAll('/', '_')}.png',
             ),
           );
           expect(tester.takeException(), isNull);
@@ -1455,7 +2166,7 @@ void main() {
       }
     });
   }
-  testWidgets('original reference responsive matrix', (tester) async {
+  testWidgets('reference responsive matrix', (tester) async {
     final errorHandler = FlutterError.onError;
     FlutterError.onError = (details) {
       debugPrint(details.toString());
@@ -1468,17 +2179,27 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    for (final width in [320.0, 360.0, 390.0]) {
+    for (final width in [320.0, 360.0, 390.0, 430.0, 768.0, 844.0]) {
       for (final scale in [1.0, 2.0]) {
-        tester.view.physicalSize = Size(width, 844);
+        tester.view.physicalSize = Size(width, width == 844 ? 390 : 844);
         tester.platformDispatcher.textScaleFactorTestValue = scale;
         for (final mode in [ThemeMode.light, ThemeMode.dark]) {
           container.read(themeModeProvider.notifier).set(mode);
           for (final path in [
             '/home',
             '/study-goals',
+            '/study-progress',
             '/study-streak',
             '/campus-rank',
+            '/study',
+            '/study/notes',
+            '/pdf-studio',
+            '/downloads',
+            '/profile',
+            '/settings',
+            '/shop',
+            '/search',
+            '/notifications',
           ]) {
             await open(tester, path);
             final scrollable = tester.state<ScrollableState>(
@@ -1488,29 +2209,32 @@ void main() {
             await tester.pumpAndSettle();
             if (path == '/home') {
               final button = tester.getRect(
-                find.byKey(const ValueKey('home-continue-study')),
+                find.byKey(const ValueKey('home-focus-card')),
+              );
+              final documentBottom = button.bottom + scrollable.position.pixels;
+              await tester.scrollUntilVisible(
+                find.byKey(const ValueKey('home-professional-badge')),
+                250,
+                scrollable: find.byType(Scrollable).first,
               );
               final badge = tester.getRect(
                 find.byKey(const ValueKey('home-professional-badge')),
               );
+              final documentTop = badge.top + scrollable.position.pixels;
               expect(
-                button.bottom,
-                lessThan(badge.top),
+                documentBottom,
+                lessThan(documentTop),
                 reason: 'Home actions must not overlap at $width / $scale',
               );
+              scrollable.position.jumpTo(scrollable.position.minScrollExtent);
+              await tester.pumpAndSettle();
             }
             if (const bool.fromEnvironment('HYZEN_CAPTURE_QA')) {
-              await tester.runAsync(() async {
-                final context = tester.element(find.byType(HyzenApp));
-                for (final phase in HomeTimePhase.values) {
-                  await precacheImage(AssetImage(phase.asset), context);
-                }
-              });
               await tester.pumpAndSettle();
               await expectLater(
                 find.byKey(const ValueKey('qa-app')),
                 matchesGoldenFile(
-                  '../qa/pr9/${path.substring(1)}-${mode.name}-${width.toInt()}-${scale.toInt()}.png',
+                  '../qa/reference/matrix/${path.substring(1)}-${mode.name}-${width.toInt()}-${scale.toInt()}.png',
                 ),
               );
             }
@@ -1541,21 +2265,6 @@ void main() {
       tester.platformDispatcher.textScaleFactorTestValue = 1;
       for (final mode in [ThemeMode.light, ThemeMode.dark]) {
         container.read(themeModeProvider.notifier).set(mode);
-        for (final hour in [6, 9, 12, 15, 18, 22]) {
-          qaClock = DateTime(2026, 1, 1, hour);
-          await open(tester, '/home');
-          container.read(homePhaseClockProvider).refresh();
-          tester
-              .state<ScrollableState>(find.byType(Scrollable).first)
-              .position
-              .jumpTo(0);
-          await tester.pumpAndSettle();
-          await expectLater(
-            find.byKey(const ValueKey('qa-app')),
-            matchesGoldenFile('../qa/pr9/home-phase-$hour-${mode.name}.png'),
-          );
-          expect(tester.takeException(), isNull);
-        }
         for (final reminder in [false, true]) {
           await open(tester, '/study-goals');
           final context = tester.element(find.byType(Scaffold).last);
@@ -1568,7 +2277,7 @@ void main() {
           await expectLater(
             find.byKey(const ValueKey('qa-app')),
             matchesGoldenFile(
-              '../qa/pr9/form-${reminder ? 'reminder' : 'task'}-${mode.name}.png',
+              '../qa/reference/matrix/form-${reminder ? 'reminder' : 'task'}-${mode.name}.png',
             ),
           );
           Navigator.pop(tester.element(find.byType(TextFormField).first));

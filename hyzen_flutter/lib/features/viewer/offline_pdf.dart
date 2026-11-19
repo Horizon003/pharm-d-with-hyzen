@@ -1,3 +1,4 @@
+import '../study_progress/document_study_scope.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -96,7 +97,10 @@ class _OfflinePdfState extends State<OfflinePdf> {
     if (_reportedOpen) return;
     _reportedOpen = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onOpened?.call();
+      if (mounted) {
+        setState(() {});
+        widget.onOpened?.call();
+      }
     });
   }
 
@@ -201,7 +205,10 @@ class _OfflinePdfState extends State<OfflinePdf> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      DocumentStudyScope(ready: _reportedOpen, child: _buildDocument(context));
+
+  Widget _buildDocument(BuildContext context) {
     final path = widget.path;
     if (path.endsWith('.office') ||
         path.endsWith('.legacy') ||
@@ -460,7 +467,10 @@ class _OfficeReaderState extends State<OfficeReader> {
       if (!_reportedOpen) {
         _reportedOpen = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) widget.onOpened?.call();
+          if (mounted) {
+            setState(() {});
+            widget.onOpened?.call();
+          }
         });
       }
       return ListView.builder(

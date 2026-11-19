@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/media_upload.dart';
+import '../../../core/widgets/soft_pill_bar.dart';
+import '../../../core/widgets/workspace_icons.dart';
 import '../../viewer/document_bytes.dart';
 import '../../viewer/document_flow.dart';
 import '../data/pdf_studio_repository.dart';
@@ -636,18 +638,14 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.document_scanner_outlined,
-            size: 64,
-            color: OfficeColors.muted(context),
-          ),
+          const WorkspaceIcon(WorkspaceGlyph.scan, size: 90),
           const SizedBox(height: 16),
           Text(
             'Add your first page',
             style: TextStyle(
               color: OfficeColors.ink(context),
               fontSize: 20,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 6),
@@ -657,11 +655,23 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
             style: TextStyle(color: OfficeColors.muted(context)),
           ),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            key: const ValueKey('scan-more'),
-            onPressed: _busy ? null : (_android ? _scan : _gallery),
-            icon: const Icon(Icons.add),
-            label: Text(_android ? 'Scan' : 'Add images'),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                key: const ValueKey('scan-more'),
+                onPressed: _busy ? null : (_android ? _scan : _gallery),
+                icon: const WorkspaceIcon(WorkspaceGlyph.scan, size: 24),
+                label: Text(_android ? 'Scan' : 'Add images'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _gallery,
+                icon: const WorkspaceIcon(WorkspaceGlyph.gallery, size: 24),
+                label: const Text('Gallery'),
+              ),
+            ],
           ),
         ],
       ),
@@ -678,35 +688,32 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
     final sel = _sel;
     final idle = !_busy && has;
     final tools = [
-      (
-        Icons.crop_rounded,
-        'Crop',
-        idle && _android ? _toggleCrop : null,
-        _crop,
+      SoftPillItem(
+        label: 'Crop',
+        icon: const WorkspaceIcon(WorkspaceGlyph.crop, size: 26),
+        onTap: idle && _android ? _toggleCrop : null,
       ),
-      (
-        Icons.rotate_right_rounded,
-        'Rotate',
-        idle && !_crop && _android ? () => _rotate(_pages[sel]) : null,
-        false,
+      SoftPillItem(
+        label: 'Rotate',
+        icon: const ControlIcon(ControlGlyph.rotate, size: 26),
+        onTap: idle && !_crop && _android ? () => _rotate(_pages[sel]) : null,
       ),
-      (
-        Icons.tune_rounded,
-        'Filters',
-        idle && !_crop && _android ? _filters : null,
-        false,
+      SoftPillItem(
+        label: 'Filters',
+        icon: const WorkspaceIcon(WorkspaceGlyph.settings, size: 26),
+        onTap: idle && !_crop && _android ? _filters : null,
       ),
-      (
-        Icons.draw_outlined,
-        'Annotate',
-        idle && !_crop && _android ? _annotate : null,
-        false,
+      SoftPillItem(
+        label: 'Annotate',
+        icon: const WorkspaceIcon(WorkspaceGlyph.edit, size: 26),
+        onTap: idle && !_crop && _android ? _annotate : null,
       ),
-      (
-        Icons.delete_outline_rounded,
-        'Delete',
-        idle && !_crop ? () => _replace([..._pages]..removeAt(sel)) : null,
-        false,
+      SoftPillItem(
+        label: 'Delete',
+        icon: const ControlIcon(ControlGlyph.delete, size: 26),
+        onTap: idle && !_crop
+            ? () => _replace([..._pages]..removeAt(sel))
+            : null,
       ),
     ];
     return PopScope(
@@ -715,8 +722,9 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
         if (!didPop) _back();
       },
       child: Scaffold(
-        backgroundColor: OfficeColors.canvas(context),
+        backgroundColor: const Color(0xFFF0EBFA),
         appBar: AppBar(
+          backgroundColor: const Color(0xFFFFF4E9),
           title: Text(
             _crop ? 'Adjust corners' : 'Review scan',
             maxLines: 1,
@@ -847,67 +855,58 @@ class _ScanPdfScreenState extends ConsumerState<ScanPdfScreen>
                   setState(() => _selectedPage = to);
                 },
               ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: OfficeColors.bar(context),
-                border: Border(
-                  top: BorderSide(color: OfficeColors.divider(context)),
-                ),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final scale =
-                              MediaQuery.textScalerOf(context).scale(11) / 11;
-                          final width = (constraints.maxWidth / tools.length)
-                              .clamp(60.0 * scale, double.infinity);
-                          return SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                for (final t in tools)
-                                  SizedBox(
-                                    width: width,
-                                    child: OfficeToolButton(
-                                      icon: t.$1,
-                                      label: t.$2,
-                                      onTap: t.$3,
-                                      selected: t.$4,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      if (_crop)
-                        Wrap(
-                          alignment: WrapAlignment.end,
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            TextButton(
-                              onPressed: _busy
-                                  ? null
-                                  : () => setState(() => _crop = false),
-                              child: const Text('Cancel crop'),
-                            ),
-                            FilledButton(
-                              onPressed: _busy ? null : _applyCrop,
-                              child: const Text('Apply crop'),
-                            ),
-                          ],
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final labelScale =
+                          MediaQuery.textScalerOf(context).scale(9) / 9;
+                      final minSlot = (54 * labelScale).clamp(
+                        48.0,
+                        double.infinity,
+                      );
+                      final minWidth = 12 + minSlot * tools.length;
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: constraints.maxWidth.clamp(
+                            minWidth,
+                            double.infinity,
+                          ),
+                          child: SoftPillBar(
+                            items: tools,
+                            selectedIndex: _crop ? 0 : -1,
+                            showAllLabels: true,
+                          ),
                         ),
-                    ],
+                      );
+                    },
                   ),
-                ),
+                  if (_crop) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => setState(() => _crop = false),
+                          child: const Text('Cancel crop'),
+                        ),
+                        FilledButton(
+                          onPressed: _busy ? null : _applyCrop,
+                          child: const Text('Apply crop'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ),
           ],

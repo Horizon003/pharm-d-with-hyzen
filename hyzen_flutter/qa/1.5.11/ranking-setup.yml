@@ -1,0 +1,10 @@
+- dialog:
+  - group:
+    - text: Make your place in the league Choose the name other learners see. You decide whether your profile appears on the leaderboard.
+    - textbox "Display name"
+    - text: Profile visibility
+    - button "Show my rank"
+    - button "Keep it private"
+    - text: Your email, phone number and documents stay private.
+    - button "Not now"
+    - button "Confirm choices" [disabled]

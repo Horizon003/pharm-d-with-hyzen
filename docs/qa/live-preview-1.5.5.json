@@ -1,0 +1,24 @@
+{
+  "url": "https://hyzen-nude-ui-preview.deepparsnip16.chatgpt.site",
+  "audience": "owner-private",
+  "project_id": "appgprj_6afb4968f628819184b1c70a3fb929ed",
+  "version_id": "appgprj_6afb4968f628819184b1c70a3fb929ed~appgver_deb9b25668a48191a1c53b070c2b9727",
+  "deployment_id": "appgdep_6afb4ab5217881919d0306595c583592",
+  "status": "succeeded",
+  "site_source_commit": "093c7db61f02e690a12cfa1cedee6e6cdf77197f",
+  "application_source_commit": "238e17235376afa1386bc43e625c9d8b4e47b075",
+  "entrypoint": "hyzen_flutter/lib/main_account_review.dart",
+  "validation": {
+    "analyzer": "passed",
+    "release_web_build": "passed",
+    "navigation_motion_regression_tests": 45,
+    "static_assets": 70,
+    "browser_visual_review": "unverified: managed browser tool unavailable"
+  },
+  "native_only": [
+    "camera/scanner",
+    "OCR",
+    "PDF editing",
+    "offline file operations"
+  ]
+}

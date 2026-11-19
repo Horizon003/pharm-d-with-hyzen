@@ -1,0 +1,91 @@
+name: Firebase native sync verification and deployment
+on:
+  push:
+    branches: [work/monochrome-motion-1.5.5]
+    paths: ['backend/**', '.github/workflows/firebase-native-sync.yml']
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy tested merge into the existing Firebase project (Spark)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: firebase-native-production
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.4'
+          cache: true
+      - run: flutter pub get
+        working-directory: hyzen_flutter
+      - run: npm ci --ignore-scripts
+        working-directory: backend/functions
+      - run: node --test backend/tests/merge-firebase-rules.test.cjs backend/tests/publish-firebase-rules.test.cjs
+      - run: backend/functions/node_modules/.bin/firebase emulators:exec --config backend/firebase-native.json --project demo-hyzen-native --only firestore 'node --test backend/tests/firebase-native.test.cjs'
+      - name: Actual Flutter Firebase SDK and admin import/export round trip
+        env:
+          CHROME_EXECUTABLE: /usr/bin/google-chrome
+        run: backend/functions/node_modules/.bin/firebase emulators:exec --config backend/firebase-native-client.json --project demo-hyzen-native --only firestore,auth 'cd hyzen_flutter && flutter test --no-pub --platform chrome --dart-define=HYZEN_FIREBASE_EMULATOR_TEST=true test/firebase_native_live_test.dart -r expanded'
+
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require Firebase deployment credentials
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_CREDENTIALS" ]; then
+            echo '::error::Add FIREBASE_SERVICE_ACCOUNT in repository Actions secrets. No Cloudflare access or Blaze plan is needed.'
+            exit 1
+          fi
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --ignore-scripts
+        working-directory: backend/functions
+      - name: Fetch and preserve current production rules; prepare additive merge
+        run: node backend/tools/prepare-firebase-rules.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firebase-previous-and-proposed-rules-${{ github.sha }}
+          path: backend/build/firebase-rollout/
+          if-no-files-found: error
+      - name: Security tests against the actual production merge
+        env:
+          HYZEN_FIRESTORE_RULES: backend/build/firebase-rollout/merged.rules
+        run: backend/functions/node_modules/.bin/firebase emulators:exec --config backend/build/firebase-rollout/firebase.json --project demo-hyzen-native --only firestore 'node --test backend/tests/firebase-native.test.cjs'
+      - name: Create only missing ranking indexes and wait until ready
+        run: node backend/tools/create-ranking-indexes.cjs
+      - name: Deploy the tested rules merge only
+        run: node backend/tools/publish-firebase-rules.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firebase-active-release-${{ github.sha }}
+          path: backend/build/firebase-rollout/deployed-release.json
+          if-no-files-found: error

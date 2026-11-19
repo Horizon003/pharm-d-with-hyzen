@@ -32,7 +32,7 @@ class ImportPreview {
   const ImportPreview(this.rows, this.errors);
   final List<ImportRow> rows;
   final List<String> errors;
-  bool get valid => rows.isNotEmpty && errors.isEmpty;
+  bool get valid => rows.isNotEmpty;
 }
 
 /// RFC-4180-style parser: commas, escaped quotes, embedded line breaks and BOM.
@@ -92,7 +92,11 @@ List<List<String>> parseCsv(String input) {
   return rows;
 }
 
-ImportPreview validateImport(String text, String source) {
+ImportPreview validateImport(
+  String text,
+  String source, {
+  String defaultType = 'auto',
+}) {
   final errors = <String>[];
   final out = <ImportRow>[];
   List<List<String>> csv;
@@ -119,7 +123,7 @@ ImportPreview validateImport(String text, String source) {
   if (headers.toSet().length != headers.length) {
     errors.add('$source: Repeated column names.');
   }
-  for (final key in required) {
+  for (final key in ['professional_year', 'semester', 'subject', 'url']) {
     if (!headers.contains(key)) errors.add('$source: Missing column $key.');
   }
   if (errors.isNotEmpty) return ImportPreview([], errors);
@@ -135,23 +139,56 @@ ImportPreview validateImport(String text, String source) {
     final values = {
       for (var j = 0; j < headers.length; j++) headers[j]: row[j].trim(),
     };
-    final type = (values['kind'] ?? '').toLowerCase();
-    final lecture = ['lecture', 'lectures', 'video', 'youtube'].contains(type);
+    for (final key in required) {
+      values.putIfAbsent(key, () => '');
+    }
+    final type = values['kind']!.isEmpty
+        ? defaultType
+        : values['kind']!.toLowerCase();
+    var normalizedType = importResourceType(type);
+    final signal = [
+      values['title'],
+      values['section'],
+      values['topic'],
+    ].join(' ');
+    if (normalizedType != 'lectures' &&
+        normalizedType != 'mcqs' &&
+        RegExp(
+          r'\bpast\s*-?\s*papers?\b|\bpastpaers?\b|\bquestion\s*-?\s*papers?\b',
+          caseSensitive: false,
+        ).hasMatch(signal)) {
+      normalizedType = 'papers';
+    }
+    if (type == 'auto' || type.isEmpty) {
+      normalizedType ??= importResourceType(values['section'] ?? '');
+    }
+    final lecture = normalizedType == 'lectures';
     final kind = lecture
         ? LibraryKind.notes
-        : LibraryKindX.parse(
-            type == 'pastpapers' || type == 'past papers'
-                ? 'papers'
-                : type == 'special books & notes'
-                ? 'special'
-                : type == 'book' || type == 'books' || type == 'slides'
-                ? 'notes'
-                : type,
-          );
+        : LibraryKindX.parse(normalizedType ?? '');
+    if (values['section']!.isEmpty) {
+      final token = type.replaceAll(RegExp(r'[^a-z]'), '');
+      values['section'] = switch (token) {
+        'book' || 'books' || 'textbook' || 'textbooks' => 'Books',
+        'slide' ||
+        'slides' ||
+        'ppt' ||
+        'presentation' ||
+        'presentations' => 'Slides',
+        'specialbooks' || 'specialbook' => 'Special Books',
+        'guidenotes' ||
+        'guidebooks' ||
+        'studyguide' ||
+        'studyguides' => 'Guide Notes',
+        'generalnotes' || 'special' || 'specialnotes' => 'General Notes',
+        _ => '',
+      };
+    }
     final labels = [for (final key in required.sublist(1, 6)) values[key]!];
     if (lecture) {
       if (labels[3].isEmpty) labels[3] = 'Lectures';
       if (labels[4].isEmpty) labels[4] = values['title']!;
+      if (values['title']!.isEmpty) values['title'] = labels[4];
     }
     final title = values['title']!, url = values['url']!;
     final uri = Uri.tryParse(url);
@@ -173,8 +210,17 @@ ImportPreview validateImport(String text, String source) {
         url.length > 2000) {
       errors.add('$origin: Provide a complete HTTPS file URL.');
     }
-    if (url.contains('REPLACE_WITH_FILE_ID')) {
+    if (RegExp(r'REPLACE_WITH_FILE_ID|/FILE_ID|=VIDEO_ID').hasMatch(url)) {
       errors.add('$origin: Replace the example file link with your real link.');
+    }
+    if (lecture &&
+        uri != null &&
+        !(uri.host == 'youtu.be' ||
+            uri.host == 'youtube.com' ||
+            uri.host.endsWith('.youtube.com') ||
+            uri.host == 'youtube-nocookie.com' ||
+            uri.host.endsWith('.youtube-nocookie.com'))) {
+      errors.add('$origin: Lectures need a YouTube link.');
     }
     if (!['true', 'false', '1', '0', ''].contains(published)) {
       errors.add('$origin: published must be true or false.');
@@ -235,15 +281,17 @@ List<Map<String, dynamic>> childrenAt(
 }
 
 class MergeResult {
-  const MergeResult(this.added, this.skipped);
+  const MergeResult(this.added, this.skipped, [this.conflicts = const []]);
   final int added, skipped;
+  final List<String> conflicts;
 }
 
 MergeResult mergeRows(
   List<Map<String, dynamic>> tree,
   Iterable<ImportRow> rows,
-  String Function() newId,
-) {
+  String Function() newId, {
+  String? batchId,
+}) {
   var added = 0, skipped = 0;
   for (final row in rows) {
     var list = tree;
@@ -259,6 +307,7 @@ MergeResult mergeRows(
       if (node == null) {
         node = {
           'id': newId(),
+          if (batchId != null) 'importBatchId': batchId,
           key: row.labels[depth],
           'order': list.length + 1,
           'published': true,
@@ -285,6 +334,7 @@ MergeResult mergeRows(
     }
     list.add({
       'id': newId(),
+      if (batchId != null) 'importBatchId': batchId,
       'title': row.title,
       'pdfUrl': row.url,
       'published': row.published,
@@ -309,15 +359,28 @@ String canonicalHeader(String value) {
     'class' => 'professional_year',
     'semester' || 'sem' || 'term' => 'semester',
     'subject' || 'subjectname' => 'subject',
-    'section' || 'sectionname' || 'subsection' || 'category' => 'section',
+    'section' ||
+    'sectionname' ||
+    'subsection' ||
+    'subsectionname' ||
+    'category' ||
+    'group' => 'section',
     'topic' || 'topicname' => 'topic',
-    'filename' || 'filetitle' || 'documentname' || 'name' || 'title' => 'title',
+    'filename' ||
+    'file' ||
+    'filetitle' ||
+    'documentname' ||
+    'name' ||
+    'title' => 'title',
     'url' ||
     'link' ||
     'filelink' ||
     'drivelink' ||
     'pdflink' ||
-    'youtubeurl' => 'url',
+    'pdfurl' ||
+    'youtubeurl' ||
+    'youtubelink' ||
+    'videolink' => 'url',
     _ => value.trim().toLowerCase().replaceAll(' ', '_'),
   };
 }
@@ -325,9 +388,11 @@ String canonicalHeader(String value) {
 MergeResult mergeLectureRows(
   List<Map<String, dynamic>> tree,
   Iterable<ImportRow> rows,
-  String Function() id,
-) {
+  String Function() id, {
+  String? batchId,
+}) {
   var added = 0, skipped = 0;
+  final conflicts = <String>[];
   for (final row in rows) {
     var list = tree;
     for (var depth = 0; depth < 3; depth++) {
@@ -342,6 +407,7 @@ MergeResult mergeLectureRows(
       if (node == null) {
         node = {
           'id': id(),
+          if (batchId != null) 'importBatchId': batchId,
           'label': row.labels[depth],
           'order': list.length + 1,
           'published': true,
@@ -365,6 +431,16 @@ MergeResult mergeLectureRows(
       skipped++;
       continue;
     }
+    if (list.any(
+      (m) =>
+          '${m['title'] ?? ''}'.trim().toLowerCase() ==
+          row.title.trim().toLowerCase(),
+    )) {
+      conflicts.add(
+        '${row.source} row ${row.line}: ${row.title} already has a different lecture link.',
+      );
+      continue;
+    }
     final host = Uri.parse(row.url).host;
     final key = host.contains('youtube.com') || host == 'youtu.be'
         ? (Uri.parse(row.url).queryParameters.containsKey('list')
@@ -373,6 +449,7 @@ MergeResult mergeLectureRows(
         : 'externalUrl';
     list.add({
       'id': id(),
+      if (batchId != null) 'importBatchId': batchId,
       'title': row.title,
       'published': row.published,
       key: row.url,
@@ -381,5 +458,113 @@ MergeResult mergeLectureRows(
     });
     added++;
   }
-  return MergeResult(added, skipped);
+  return MergeResult(added, skipped, conflicts);
+}
+
+String? importResourceType(String value) {
+  final t = value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  if ([
+    'special',
+    'specialbook',
+    'specialbooks',
+    'specialbooksnotes',
+    'specialnotes',
+    'guidenote',
+    'guidenotes',
+    'guidebook',
+    'guidebooks',
+    'generalnote',
+    'generalnotes',
+    'studyguide',
+    'studyguides',
+  ].contains(t)) {
+    return 'special';
+  }
+  if ([
+    'note',
+    'notes',
+    'notespdf',
+    'book',
+    'books',
+    'textbook',
+    'textbooks',
+    'slide',
+    'slides',
+    'ppt',
+    'presentation',
+    'presentations',
+    'assignment',
+    'assignments',
+    'practical',
+    'practicals',
+    'reference',
+    'referencematerial',
+    'handout',
+    'handouts',
+    'handwrittennotes',
+  ].contains(t)) {
+    return 'notes';
+  }
+  if ([
+    'mcq',
+    'mcqs',
+    'multiplechoice',
+    'multiplechoicequestions',
+  ].contains(t)) {
+    return 'mcqs';
+  }
+  if ([
+    'paper',
+    'papers',
+    'pastpaper',
+    'pastpapers',
+    'pastpaer',
+    'pastpaers',
+  ].contains(t)) {
+    return 'papers';
+  }
+  if ([
+    'lecture',
+    'lectures',
+    'video',
+    'videos',
+    'youtube',
+    'youtubelecture',
+  ].contains(t)) {
+    return 'lectures';
+  }
+  return null;
+}
+
+int undoImportNodes(List<Map<String, dynamic>> tree, String batchId) {
+  var removed = 0;
+  tree.removeWhere((node) {
+    var hasChildren = false;
+    for (final key in childKeys) {
+      final raw = node[key];
+      if (raw is List) {
+        final children = raw
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList();
+        removed += undoImportNodes(children, batchId);
+        node[key] = children;
+        hasChildren |= children.isNotEmpty;
+      }
+    }
+    final owner =
+        node['importBatchId'] ??
+        node['_importBatch'] ??
+        node['_createdByBatch'];
+    if (owner != batchId || hasChildren) return false;
+    if (node.containsKey('pdfUrl') ||
+        node.containsKey('url') ||
+        node.containsKey('youtubeUrl') ||
+        node.containsKey('playlistUrl') ||
+        node.containsKey('externalUrl')) {
+      removed++;
+    }
+    return true;
+  });
+  return removed;
 }

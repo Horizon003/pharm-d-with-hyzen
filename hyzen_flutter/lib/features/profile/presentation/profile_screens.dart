@@ -1,5 +1,7 @@
-import '../../../core/widgets/navigation_preferences.dart';
+import '../../study_progress/reward_controller.dart';
+import '../../../core/widgets/reward_art.dart';
 import 'dart:async';
+import '../../../core/widgets/display_preferences.dart';
 import 'profile_promotions.dart';
 import '../../academics/data/drive_gateway.dart';
 import 'package:flutter/foundation.dart';
@@ -79,11 +81,20 @@ class ProfileScreen extends ConsumerWidget {
       },
       children: [
         AccountProfileCard(
+          badges: ref.watch(rewardProvider).badges.isEmpty
+              ? null
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final day in ref.watch(rewardProvider).badges.take(3))
+                      RewardArt(10 + rewardMilestones.indexOf(day), size: 18),
+                  ],
+                ),
           name: name,
           subtitle: p?.rollNumber?.isNotEmpty == true
               ? 'Account info · ${p!.rollNumber}'
               : 'Account info',
-          photoUrl: p?.photoUrl ?? user?.photoURL,
+          photoUrl: ProfileAvatar.resolveUrl(p?.photoUrl, user?.photoURL),
           onTap: () => go('/profile/info'),
         ),
         const SizedBox(height: 22),
@@ -175,7 +186,7 @@ class AccountInfoScreen extends ConsumerWidget {
         const SizedBox(height: 8),
         Center(
           child: AccountAvatar(
-            photoUrl: p?.photoUrl ?? user?.photoURL,
+            photoUrl: ProfileAvatar.resolveUrl(p?.photoUrl, user?.photoURL),
             fallback: name,
             radius: 46,
           ),
@@ -188,7 +199,7 @@ class AccountInfoScreen extends ConsumerWidget {
               'Change Photo',
               style: TextStyle(
                 color: AccountStyle.linkOf(context),
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 fontSize: 15,
               ),
             ),
@@ -339,7 +350,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 email: user.email ?? '',
               ));
     final p = _p;
-    _photo = p?.photoUrl ?? user?.photoURL;
+    _photo = ProfileAvatar.resolveUrl(p?.photoUrl, user?.photoURL);
     _name = TextEditingController(text: p?.fullName ?? '');
     _mobile = TextEditingController(
       text: PkPhone.normalize(p?.mobile ?? '') == null
@@ -450,7 +461,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
           title: const Text(
             'Edit profile',
-            style: TextStyle(fontWeight: FontWeight.w800),
+            style: TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
         body: SafeArea(
@@ -769,7 +780,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final p = ref.watch(profileProvider).valueOrNull;
     final user = ref.watch(authStateProvider).valueOrNull;
-    final mode = ref.watch(themeModeProvider);
     final notif = ref.watch(boolPrefProvider('pref_announcements'));
     final used = ref
         .watch(downloadsProvider)
@@ -784,7 +794,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         AccountProfileCard(
           name: _accountName(p, user?.displayName, ref.watch(isAdminProvider)),
           subtitle: 'Account info',
-          photoUrl: p?.photoUrl ?? user?.photoURL,
+          photoUrl: ProfileAvatar.resolveUrl(p?.photoUrl, user?.photoURL),
           onTap: () => context.open('/profile/info'),
         ),
         const SizedBox(height: 20),
@@ -803,6 +813,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
           ),
         ),
+        if (_matches('display text size elements appearance animation')) ...[
+          const AccountSectionHeader('Display & motion'),
+          SettingsCard(
+            children: [
+              const DisplayControls(),
+              SettingsRow(
+                title: 'Ambient hero animation',
+                trailing: AccountToggle(
+                  label: 'Ambient hero animation',
+                  value: ref.watch(boolPrefProvider('pref_ambient_motion')),
+                  onChanged: (value) => ref
+                      .read(boolPrefProvider('pref_ambient_motion').notifier)
+                      .set(value),
+                ),
+              ),
+            ],
+          ),
+        ],
         if (_matches(
           'personal academic professional year profile app updates release',
         )) ...[
@@ -825,32 +853,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(siteSettingsProvider).raw,
                   ),
                 ),
-            ],
-          ),
-        ],
-        if (_matches('appearance theme light dark auto text size font')) ...[
-          const AccountSectionHeader('Appearance'),
-          SettingsCard(
-            children: [
-              SettingsRow(
-                title: 'App theme',
-                value: switch (mode) {
-                  ThemeMode.light => 'Light',
-                  ThemeMode.dark => 'Dark',
-                  ThemeMode.system => 'Auto',
-                },
-                onTap: () => _chooseTheme(context, ref, mode),
-              ),
-              SettingsRow(
-                title: 'Text size',
-                value: '${ref.watch(textSizeProvider)}',
-                onTap: () => showModalBottomSheet<void>(
-                  context: context,
-                  showDragHandle: true,
-                  isScrollControlled: true,
-                  builder: (_) => const AppearanceControls(),
-                ),
-              ),
             ],
           ),
         ],
@@ -957,46 +959,5 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     );
-  }
-}
-
-Future<void> _chooseTheme(
-  BuildContext context,
-  WidgetRef ref,
-  ThemeMode mode,
-) async {
-  final next = await showModalBottomSheet<ThemeMode>(
-    context: context,
-    backgroundColor: AccountStyle.cardOf(context),
-    showDragHandle: true,
-    builder: (context) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const AccountSectionHeader('App theme'),
-            for (final item in const [
-              (ThemeMode.light, 'Light'),
-              (ThemeMode.dark, 'Dark'),
-              (ThemeMode.system, 'Auto'),
-            ])
-              SettingsRow(
-                title: item.$2,
-                trailing: mode == item.$1
-                    ? Icon(
-                        Icons.check_rounded,
-                        color: AccountStyle.linkOf(context),
-                      )
-                    : null,
-                onTap: () => Navigator.pop(context, item.$1),
-              ),
-          ],
-        ),
-      ),
-    ),
-  );
-  if (next != null && context.mounted) {
-    ref.read(themeModeProvider.notifier).set(next);
   }
 }

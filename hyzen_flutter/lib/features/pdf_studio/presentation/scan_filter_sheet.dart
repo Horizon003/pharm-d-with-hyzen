@@ -39,7 +39,9 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
 
   String _filter = 'original', _committed = 'original';
   int _strength = 100, _brightness = 0, _contrast = 0;
-  int _committedStrength = 100, _committedBrightness = 0, _committedContrast = 0;
+  int _committedStrength = 100,
+      _committedBrightness = 0,
+      _committedContrast = 0;
   bool _all = false, _loading = true, _processing = false;
   Uint8List? _bytes;
   String? _error;
@@ -182,23 +184,22 @@ class _ScanFilterSheetState extends State<ScanFilterSheet> {
               const Expanded(
                 child: Text(
                   'Filters',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
                 ),
               ),
               IconButton(
                 tooltip: 'Confirm filter',
                 onPressed: _loading || _error != null
                     ? null
-                    : () =>
-                        _close(
-                          ScanFilterChoice(
-                            _filter,
-                            _all,
-                            strength: _strength,
-                            brightness: _brightness,
-                            contrast: _contrast,
-                          ),
+                    : () => _close(
+                        ScanFilterChoice(
+                          _filter,
+                          _all,
+                          strength: _strength,
+                          brightness: _brightness,
+                          contrast: _contrast,
                         ),
+                      ),
                 icon: const Icon(Icons.check),
               ),
             ],

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/workspace_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../app/providers.dart';
 import '../../auth/domain/reference_data.dart';
-import '../../../core/utils/links.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/ui_kit.dart';
+import '../../../core/widgets/hyzen_art.dart';
 import '../../content/data/content_providers.dart';
 import '../../downloads/data/downloads_controller.dart';
 import '../../downloads/domain/download_record.dart';
@@ -51,16 +52,35 @@ class StudyHubScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: HSpace.screen),
           sliver: SliverList.list(
             children: [
-              Text(
-                'Your libraries',
-                style: Theme.of(context).textTheme.titleLarge,
+              if (kinds.isNotEmpty) ...[
+                HyzenBanner(
+                  title: "Today's study",
+                  subtitle: 'Notes, MCQs & past papers',
+                  art: 'study-kit',
+                  eyebrow: ReferenceData.yearLabel(
+                    ref.watch(professionalYearProvider),
+                  ),
+                  actionLabel: 'Open library',
+                  action: () => context.push('/study/${kinds.first.name}'),
+                ),
+                const Gap(18),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Your libraries',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => context.open('/profile/edit'),
+                    icon: const Icon(Icons.tune_rounded, size: 14),
+                    label: const Text('Change year'),
+                  ),
+                ],
               ),
-              TextButton.icon(
-                onPressed: () => context.open('/profile/edit'),
-                icon: const Icon(Icons.tune_rounded),
-                label: const Text('Change professional year'),
-              ),
-              const Gap(HSpace.lg),
+              const Gap(8),
               for (final k in kinds) _LibraryCard(kind: k),
               if (lectures)
                 ResourceTile(
@@ -94,6 +114,18 @@ class _LibraryCard extends ConsumerWidget {
     final n = lib.valueOrNull?.data.fileCount;
     return ResourceTile(
       icon: kindIcon(kind),
+      leading: WorkspaceIcon(switch (kind) {
+        LibraryKind.notes => WorkspaceGlyph.notes,
+        LibraryKind.papers => WorkspaceGlyph.papers,
+        LibraryKind.special => WorkspaceGlyph.books,
+        LibraryKind.mcqs => WorkspaceGlyph.mcqs,
+      }, size: 42),
+      surfaceColor: switch (kind) {
+        LibraryKind.notes => const Color(0xFFE8DFF8),
+        LibraryKind.papers => const Color(0xFFFFE5CB),
+        LibraryKind.special => const Color(0xFFDDEEE2),
+        LibraryKind.mcqs => const Color(0xFFDCE8FF),
+      },
       color: kindColor(kind),
       eyebrow: n == null
           ? (lib.isLoading ? 'Loading\u2026' : 'Library')
@@ -249,6 +281,10 @@ class _LibraryLevelScreenState extends ConsumerState<LibraryLevelScreen> {
                 (c, col) => ResourceTile(
                   icon: Icons.workspace_premium_rounded,
                   color: col,
+                  surfaceColor: Color.alphaBlend(
+                    col.withValues(alpha: .12),
+                    Colors.white,
+                  ),
                   title: y.label,
                   subtitle:
                       '${y.semesters.length} semesters \u00b7 ${y.subjectCount} subjects \u00b7 ${y.fileCount} files',
@@ -274,6 +310,10 @@ class _LibraryLevelScreenState extends ConsumerState<LibraryLevelScreen> {
                 (c, col) => ResourceTile(
                   icon: Icons.calendar_month_rounded,
                   color: col,
+                  surfaceColor: Color.alphaBlend(
+                    col.withValues(alpha: .12),
+                    Colors.white,
+                  ),
                   title: s.label,
                   subtitle:
                       '${s.subjects.length} subjects \u00b7 ${s.fileCount} files',
@@ -302,6 +342,10 @@ class _LibraryLevelScreenState extends ConsumerState<LibraryLevelScreen> {
                 (c, col) => ResourceTile(
                   icon: Icons.science_rounded,
                   color: col,
+                  surfaceColor: Color.alphaBlend(
+                    col.withValues(alpha: .12),
+                    Colors.white,
+                  ),
                   title: su.label,
                   subtitle:
                       '${su.sections.length} sections \u00b7 ${su.fileCount} files',
@@ -327,6 +371,10 @@ class _LibraryLevelScreenState extends ConsumerState<LibraryLevelScreen> {
                 (c, col) => ResourceTile(
                   icon: Icons.folder_copy_rounded,
                   color: col,
+                  surfaceColor: Color.alphaBlend(
+                    col.withValues(alpha: .12),
+                    Colors.white,
+                  ),
                   title: sec.title,
                   subtitle:
                       '${sec.topics.length} topics \u00b7 ${sec.fileCount} files',
@@ -356,6 +404,10 @@ class _LibraryLevelScreenState extends ConsumerState<LibraryLevelScreen> {
                 (c, col) => ResourceTile(
                   icon: Icons.topic_rounded,
                   color: col,
+                  surfaceColor: Color.alphaBlend(
+                    col.withValues(alpha: .12),
+                    Colors.white,
+                  ),
                   title: tp.title,
                   subtitle:
                       '${tp.files.length} file${tp.files.length == 1 ? '' : 's'}',
@@ -462,7 +514,7 @@ class FileTile extends ConsumerWidget {
   }
 }
 
-/// Lectures (CONFIRMED pw_lectures_tree; YouTube links open in YouTube app/browser).
+/// Lectures (CONFIRMED pw_lectures_tree; YouTube videos play inside the app).
 class LecturesScreen extends ConsumerWidget {
   const LecturesScreen({super.key});
   @override
@@ -518,10 +570,10 @@ class LecturesScreen extends ConsumerWidget {
                   color: HColors.lectures,
                   title: l.title,
                   subtitle: se.label,
-                  trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+                  trailing: const Icon(Icons.play_arrow_rounded, size: 20),
                   onTap: () => l.uri == null
                       ? showHSnack(context, 'Link missing', error: true)
-                      : openLink(context, l.uri.toString()),
+                      : context.push('/lecture-player', extra: {'title': l.title, 'url': l.uri.toString()}),
                 ),
               );
             }

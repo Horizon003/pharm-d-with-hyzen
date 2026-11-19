@@ -3,20 +3,52 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyzen_pharmd/core/widgets/profile_avatar.dart';
 
 void main() {
-  test('legacy student avatar references resolve to Hyzen panda', () {
-    for (final id in [
-      'male_1', 'male_2', 'male_3',
-      'female_1', 'female_2', 'female_3',
-    ]) {
-      expect(ProfileAvatar.imageFor('avatar:$id'), isA<ResizeImage>());
-    }
-    expect(ProfileAvatar.imageFor(null), isA<ResizeImage>());
-  });
-
-  test('uploaded HTTPS student photos remain available', () {
+  test(
+    'missing or retired avatar shows initials rather than an unrelated panda',
+    () {
+      for (final value in [
+        null,
+        '',
+        'avatar:male_1',
+        'avatar:female_1',
+        'https://',
+      ]) {
+        expect(ProfileAvatar.imageFor(value), isNull);
+      }
+    },
+  );
+  test('saved uploaded photo takes priority over the account photo', () {
+    expect(
+      ProfileAvatar.resolveUrl(
+        ' https://example.org/upload.jpg ',
+        'https://example.org/google.jpg',
+      ),
+      'https://example.org/upload.jpg',
+    );
     expect(
       ProfileAvatar.imageFor('https://example.org/photo.jpg'),
       isA<NetworkImage>(),
     );
+  });
+  test('missing and legacy profile values resolve to the account photo', () {
+    for (final value in [null, '', 'avatar:male_1']) {
+      expect(
+        ProfileAvatar.resolveUrl(value, 'https://example.org/google.jpg'),
+        'https://example.org/google.jpg',
+      );
+    }
+  });
+  testWidgets('empty profile photo renders initials without image errors', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: ProfileAvatar(photoUrl: null, fallback: 'Ali')),
+    );
+    expect(find.text('A'), findsOneWidget);
+    expect(
+      tester.widget<CircleAvatar>(find.byType(CircleAvatar)).foregroundImage,
+      isNull,
+    );
+    expect(tester.takeException(), isNull);
   });
 }
